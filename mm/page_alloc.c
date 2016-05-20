@@ -1576,16 +1576,44 @@ inline void post_alloc_hook(struct page *page, unsigned int order,
 	set_page_owner(page, order, gfp_flags);
 }
 
-static int prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags,
+#ifdef CONFIG_DEBUG_VM
+static bool check_pcp_refill(struct page *page)
+{
+	return false;
+}
+
+static bool check_new_pcp(struct page *page)
+{
+	return check_new_page(page);
+}
+#else
+static bool check_pcp_refill(struct page *page)
+{
+	return check_new_page(page);
+}
+static bool check_new_pcp(struct page *page)
+{
+	return false;
+}
+#endif /* CONFIG_DEBUG_VM */
+
+static bool check_new_pages(struct page *page, unsigned int order)
+{
+	int i;
+	for (i = 0; i < (1 << order); i++) {
+		struct page *p = page + i;
+
+		if (unlikely(check_new_page(p)))
+			return true;
+	}
+
+	return false;
+}
+
+static void prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags,
 							unsigned int alloc_flags)
 {
 	int i;
-
-	for (i = 0; i < (1 << order); i++) {
-		struct page *p = page + i;
-		if (unlikely(check_new_page(p)))
-			return 1;
-	}
 
 	post_alloc_hook(page, order, gfp_flags);
 
@@ -1606,8 +1634,6 @@ static int prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags,
 		set_page_pfmemalloc(page);
 	else
 		clear_page_pfmemalloc(page);
-
-	return 0;
 }
 
 /*
@@ -2077,6 +2103,9 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
 		if (unlikely(page == NULL))
 			break;
 
+		if (unlikely(check_pcp_refill(page)))
+			continue;
+
 		/*
 		 * Split buddy pages returned by expand() are received here
 		 * in physical page order. The page is added to the callers and
@@ -2472,32 +2501,33 @@ struct page *buffered_rmqueue(struct zone *preferred_zone,
 		struct list_head *list = NULL;
 
 		local_irq_save(flags);
-		pcp = &this_cpu_ptr(zone->pageset)->pcp;
+		do {
+			pcp = &this_cpu_ptr(zone->pageset)->pcp;
 
-		/* First try to get CMA pages */
-		if (migratetype == MIGRATE_MOVABLE &&
-			gfp_flags & __GFP_CMA) {
-			list = get_populated_pcp_list(zone, 0, pcp,
-					get_cma_migrate_type(), cold);
-		}
+			/* First try to get CMA pages */
+			if (migratetype == MIGRATE_MOVABLE &&
+				gfp_flags & __GFP_CMA) {
+				list = get_populated_pcp_list(zone, 0, pcp,
+						get_cma_migrate_type(), cold);
+			}
 
-		if (list == NULL) {
-			/*
-			 * Either CMA is not suitable or there are no free CMA
-			 * pages.
-			 */
-			list = get_populated_pcp_list(zone, 0, pcp,
-				migratetype, cold);
-			if (unlikely(list == NULL) ||
-				unlikely(list_empty(list)))
-				goto failed;
-		}
+			if (list == NULL) {
+				/*
+				* Either CMA is not suitable or there are no free CMA
+				* pages.
+				*/
+				list = get_populated_pcp_list(zone, 0, pcp,
+					migratetype, cold);
+				if (unlikely(list == NULL) ||
+					unlikely(list_empty(list)))
+					goto failed;
+			}
 
-		if (cold)
-			page = list_entry(list->prev, struct page, lru);
-		else
-			page = list_entry(list->next, struct page, lru);
-
+			if (cold)
+				page = list_entry(list->prev, struct page, lru);
+			else
+				page = list_entry(list->next, struct page, lru);
+		} while (page && check_new_pcp(page));
 		__dec_zone_state(zone, NR_ALLOC_BATCH);
 		list_del(&page->lru);
 		pcp->count--;
@@ -2516,20 +2546,20 @@ struct page *buffered_rmqueue(struct zone *preferred_zone,
 			WARN_ON_ONCE(order > 1);
 		}
 		spin_lock_irqsave(&zone->lock, flags);
+		do {
+			page = NULL;
+			if (alloc_flags & ALLOC_HARDER) {
+				page = __rmqueue_smallest(zone, order, MIGRATE_HIGHATOMIC);
+				if (page)
+					trace_mm_page_alloc_zone_locked(page, order, migratetype);
+			}
+			if (!page && migratetype == MIGRATE_MOVABLE &&
+					gfp_flags & __GFP_CMA)
+				page = __rmqueue_cma(zone, order);
 
-		page = NULL;
-		if (alloc_flags & ALLOC_HARDER) {
-			page = __rmqueue_smallest(zone, order, MIGRATE_HIGHATOMIC);
-			if (page)
-				trace_mm_page_alloc_zone_locked(page, order, migratetype);
-		}
-		if (!page && migratetype == MIGRATE_MOVABLE &&
-				gfp_flags & __GFP_CMA)
-			page = __rmqueue_cma(zone, order);
-
-		if (!page)
-			page = __rmqueue(zone, order, migratetype, gfp_flags);
-
+			if (!page)
+				page = __rmqueue(zone, order, migratetype, gfp_flags);
+		} while (page && check_new_pcp(page));
 		spin_unlock(&zone->lock);
 		if (!page)
 			goto failed;
@@ -2904,8 +2934,7 @@ try_this_zone:
 		page = buffered_rmqueue(ac->preferred_zoneref->zone, zone, order,
 				gfp_mask, alloc_flags, ac->migratetype);
 		if (page) {
-			if (prep_new_page(page, order, gfp_mask, alloc_flags))
-				goto try_this_zone;
+			prep_new_page(page, order, gfp_mask, alloc_flags);
 
 			/*
 			 * If this is a high-order atomic allocation then check
