@@ -2173,12 +2173,8 @@ int __cpufreq_driver_target(struct cpufreq_policy *policy,
 			goto out;
 		}
 
-		retval = cpufreq_frequency_table_target(policy,
-				target_freq, relation, &index);
-		if (unlikely(retval)) {
-			pr_err("%s: Unable to find matching freq\n", __func__);
-			goto out;
-		}
+		index = cpufreq_frequency_table_target(policy,
+				target_freq, relation);
 
 		if (freq_table[index].frequency == policy->cur) {
 			retval = 0;
