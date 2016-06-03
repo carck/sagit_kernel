@@ -41,7 +41,7 @@ static void ondemand_powersave_bias_init_cpu(int cpu)
 {
 	struct od_cpu_dbs_info_s *dbs_info = &per_cpu(od_cpu_dbs_info, cpu);
 
-	dbs_info->freq_table = cpufreq_frequency_get_table(cpu);
+	dbs_info->freq_table = policy->freq_table;
 	dbs_info->freq_lo = 0;
 }
 
