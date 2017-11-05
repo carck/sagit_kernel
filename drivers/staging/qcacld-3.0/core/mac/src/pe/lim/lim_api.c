@@ -784,7 +784,7 @@ tSirRetStatus pe_open(tpAniSirGlobal pMac, struct cds_config_info *cds_cfg)
 	}
 
 	pMac->lim.mgmtFrameSessionId = 0xff;
-	pMac->lim.tdls_frm_session_id = NO_SESSION;
+	pMac->lim.tdls_frm_session_id = 0xFF;
 	pMac->lim.deferredMsgCnt = 0;
 
 	if (!QDF_IS_STATUS_SUCCESS(qdf_mutex_create(&pMac->lim.lkPeGlobalLock))) {
