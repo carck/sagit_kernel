@@ -94,6 +94,7 @@ struct fpc1020_data {
 	bool fb_black;
 	bool wait_finger_down;
 	struct work_struct work;
+	struct work_struct pm_work;
 };
 
 static irqreturn_t fpc1020_irq_handler(int irq, void *handle);
@@ -566,6 +567,35 @@ static void notification_work(struct work_struct *work)
 	pr_debug("unblank\n");
 }
 
+static void set_fingerprintd_nice(int nice)
+{
+	struct task_struct *p;
+
+	read_lock(&tasklist_lock);
+	for_each_process(p) {
+		if (!memcmp(p->comm, "fingerprintd", 13)) {
+			set_user_nice(p, nice);
+			break;
+		}
+	}
+	read_unlock(&tasklist_lock);
+}
+
+static void fpc1020_suspend_resume(struct work_struct *work)
+{
+	struct fpc1020_data *fpc1020 =
+		container_of(work, typeof(*fpc1020), pm_work);
+
+	/*
+	 * Elevate fingerprintd priority when screen is off to ensure
+	 * the fingerprint sensor is responsive and that the haptic
+	 * response on successful verification always fires.
+	 */
+	if (!fpc1020->fb_black)
+		set_fingerprintd_nice(0);
+	else
+		set_fingerprintd_nice(-1);
+}
 
 static irqreturn_t fpc1020_irq_handler(int irq, void *handle)
 {
@@ -573,7 +603,7 @@ static irqreturn_t fpc1020_irq_handler(int irq, void *handle)
 
 	dev_dbg(fpc1020->dev, "%s\n", __func__);
 
-	if (atomic_read(&fpc1020->wakeup_enabled)) {
+	if (fpc1020->fb_black && atomic_read(&fpc1020->wakeup_enabled)) {
 		wake_lock_timeout(&fpc1020->ttw_wl,
 					msecs_to_jiffies(FPC_TTW_HOLD_TIME));
 	}
@@ -632,9 +662,11 @@ static int fpc_fb_notif_callback(struct notifier_block *nb,
 		switch (blank) {
 		case FB_BLANK_POWERDOWN:
 			fpc1020->fb_black = true;
+			queue_work(system_highpri_wq, &fpc1020->pm_work);
 			break;
 		case FB_BLANK_UNBLANK:
 			fpc1020->fb_black = false;
+			queue_work(system_highpri_wq, &fpc1020->pm_work);
 			break;
 		default:
 			pr_debug("%s defalut\n", __func__);
@@ -702,6 +734,8 @@ static int fpc1020_probe(struct platform_device *pdev)
 	}
 
 	atomic_set(&fpc1020->wakeup_enabled, 1);
+
+	INIT_WORK(&fpc1020->pm_work, fpc1020_suspend_resume);
 
 	fpc1020->irqf = IRQF_TRIGGER_RISING | IRQF_ONESHOT | IRQF_NO_SUSPEND;
 	device_init_wakeup(dev, 1);

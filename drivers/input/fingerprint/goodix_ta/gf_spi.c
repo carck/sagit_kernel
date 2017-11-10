@@ -643,6 +643,36 @@ static const struct file_operations gf_fops = {
 #endif
 };
 
+static void set_fingerprintd_nice(int nice)
+{
+	struct task_struct *p;
+
+	read_lock(&tasklist_lock);
+	for_each_process(p) {
+		if (!memcmp(p->comm, "fingerprintd", 13)) {
+			set_user_nice(p, nice);
+			break;
+		}
+	}
+	read_unlock(&tasklist_lock);
+}
+
+static void goodix_suspend_resume(struct work_struct *work)
+{
+	struct gf_dev *data =
+		container_of(work, typeof(*data), pm_work);
+
+	/*
+	 * Elevate fingerprintd priority when screen is off to ensure
+	 * the fingerprint sensor is responsive and that the haptic
+	 * response on successful verification always fires.
+	 */
+	if (!data->fb_black)
+		set_fingerprintd_nice(0);
+	else
+		set_fingerprintd_nice(-1);
+}
+
 static int goodix_fb_state_chg_callback(struct notifier_block *nb,
 		unsigned long val, void *data)
 {
@@ -663,6 +693,7 @@ static int goodix_fb_state_chg_callback(struct notifier_block *nb,
 			if (gf_dev->device_available == 1) {
 				gf_dev->fb_black = 1;
 				gf_dev->wait_finger_down = true;
+				queue_work(system_highpri_wq, &gf_dev->pm_work);
 #if defined(GF_NETLINK_ENABLE)
 				temp[0] = GF_NET_EVENT_FB_BLACK;
 				sendnlmsg(temp);
@@ -676,6 +707,7 @@ static int goodix_fb_state_chg_callback(struct notifier_block *nb,
 		case FB_BLANK_UNBLANK:
 			if (gf_dev->device_available == 1) {
 				gf_dev->fb_black = 0;
+				queue_work(system_highpri_wq, &gf_dev->pm_work);
 #if defined(GF_NETLINK_ENABLE)
 				temp[0] = GF_NET_EVENT_FB_UNBLACK;
 				sendnlmsg(temp);
@@ -784,6 +816,8 @@ static int gf_probe(struct platform_device *pdev)
 
 	spi_clock_set(gf_dev, 1000000);
 #endif
+
+	INIT_WORK(&gf_dev->pm_work, goodix_suspend_resume);
 
 	gf_dev->notifier = goodix_noti_block;
 	fb_register_client(&gf_dev->notifier);
