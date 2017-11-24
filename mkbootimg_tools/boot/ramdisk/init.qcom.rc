@@ -414,7 +414,7 @@ service ss_ramdump /system/bin/subsystem_ramdump 2
     class late_start
 #   user system
     group system
-#    disabled
+    disabled
 
 on property:persist.sys.ssr.enable_debug=*
     write /sys/module/subsystem_restart/parameters/enable_debug ${persist.sys.ssr.enable_debug}

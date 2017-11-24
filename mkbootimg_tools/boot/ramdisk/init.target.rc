@@ -611,6 +611,7 @@ service display_count /system/bin/display_count
     class late_start
     user root
     group root
+    disabled
 
 on charger
     write /sys/class/input/input0/enabled 0
