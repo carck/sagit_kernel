@@ -377,6 +377,7 @@ void adjust_gfp_mask(gfp_t *unused)
 void tune_lmk_param(int *other_free, int *other_file, struct shrink_control *sc)
 {
 	gfp_t gfp_mask;
+	struct zoneref *z;
 	struct zone *preferred_zone;
 	struct zonelist *zonelist;
 	enum zone_type high_zoneidx, classzone_idx;
@@ -388,7 +389,8 @@ void tune_lmk_param(int *other_free, int *other_file, struct shrink_control *sc)
 
 	zonelist = node_zonelist(0, gfp_mask);
 	high_zoneidx = gfp_zone(gfp_mask);
-	first_zones_zonelist(zonelist, high_zoneidx, NULL, &preferred_zone);
+	z = first_zones_zonelist(zonelist, high_zoneidx, NULL);
+	preferred_zone = zonelist_zone(z);
 	classzone_idx = zone_idx(preferred_zone);
 	use_cma_pages = can_use_cma_pages(gfp_mask);
 

@@ -1007,6 +1007,9 @@ static bool free_pcp_prepare(struct page *page)
 	kernel_map_pages(page, 0, 0);
 	kasan_free_pages(page, 0);
 
+	page_cpupid_reset_last(page);
+	page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
+
 	return true;
 }
 
@@ -2606,7 +2609,7 @@ struct page *buffered_rmqueue(struct zone *preferred_zone,
 
 			if (!page)
 				page = __rmqueue(zone, order, migratetype, gfp_flags);
-		} while (page && check_new_pcp(page));
+		} while (page && check_new_pages(page, order));
 		spin_unlock(&zone->lock);
 		if (!page)
 			goto failed;
@@ -3285,7 +3288,7 @@ __alloc_pages_high_priority(gfp_t gfp_mask, unsigned int order,
 						ALLOC_NO_WATERMARKS, ac);
 
 		if (!page && gfp_mask & __GFP_NOFAIL)
-			wait_iff_congested(ac->preferred_zone, BLK_RW_ASYNC,
+			wait_iff_congested(ac->preferred_zoneref->zone, BLK_RW_ASYNC,
 									HZ/50);
 	} while (!page && (gfp_mask & __GFP_NOFAIL));
 
