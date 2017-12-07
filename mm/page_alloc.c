@@ -938,9 +938,6 @@ static inline int free_pages_check(struct page *page)
 		bad_page(page, bad_reason, bad_flags);
 		return 1;
 	}
-	page_cpupid_reset_last(page);
-	if (page->flags & PAGE_FLAGS_CHECK_AT_PREP)
-		page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
 	return 0;
 }
 
@@ -1204,7 +1201,11 @@ static bool free_pages_prepare(struct page *page, unsigned int order)
 		for (i = 1; i < (1 << order); i++) {
 			if (compound)
 				bad += free_tail_pages_check(page, page + i);
-			bad += free_pages_check(page + i);
+			if (unlikely(free_pages_check(page + i))) {
+				bad++;
+				continue;
+			}
+			(page + i)->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
 		}
 	}
 	if (PageMappingFlags(page))
@@ -1212,7 +1213,9 @@ static bool free_pages_prepare(struct page *page, unsigned int order)
 	bad += free_pages_check(page);
 	if (bad)
 		return false;
-
+	
+	page_cpupid_reset_last(page);
+	page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
 	reset_page_owner(page, order);
 
 	if (!PageHighMem(page)) {
