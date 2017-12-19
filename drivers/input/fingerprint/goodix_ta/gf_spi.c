@@ -504,8 +504,9 @@ static irqreturn_t gf_irq(int irq, void *handle)
 	char temp[4] = { 0x0 };
 	uint32_t key_input = 0;
 	temp[0] = GF_NET_EVENT_IRQ;
-	pr_debug("%s enter\n", __func__);
-	wake_lock_timeout(&fp_wakelock, msecs_to_jiffies(WAKELOCK_HOLD_TIME));
+	if (gf_dev->fb_black) {
+		wake_lock_timeout(&fp_wakelock, msecs_to_jiffies(WAKELOCK_HOLD_TIME));
+	}
 	sendnlmsg(temp);
 	if ((gf_dev->wait_finger_down == true) && (gf_dev->device_available == 1) && (gf_dev->fb_black == 1)) {
 		key_input = KEY_RIGHT;
