@@ -41,6 +41,7 @@
 #include <linux/notifier.h>
 #include <linux/fb.h>
 #include <linux/mdss_io_util.h>
+#include <linux/input.h>
 
 #define FPC_TTW_HOLD_TIME 2000
 #define FP_UNLOCK_REJECTION_TIMEOUT (FPC_TTW_HOLD_TIME - 500)
@@ -56,6 +57,8 @@
 
 #define NUM_PARAMS_REG_ENABLE_SET 2
 
+/* Unused key value to avoid interfering with active keys */
+#define KEY_FINGERPRINT 0x2ee
 
 static const char * pctl_names[] = {
 	"fpc1020_reset_reset",
@@ -95,6 +98,7 @@ struct fpc1020_data {
 	bool wait_finger_down;
 	struct work_struct work;
 	struct work_struct pm_work;
+	struct input_dev	*input_dev;
 };
 
 static irqreturn_t fpc1020_irq_handler(int irq, void *handle);
@@ -557,6 +561,53 @@ static struct attribute *attributes[] = {
 	NULL
 };
 
+int fpc1020_input_init(struct fpc1020_data *fpc1020)
+{
+	int error = 0;
+
+
+	dev_dbg(fpc1020->dev, "%s\n", __func__);
+
+	fpc1020->input_dev = input_allocate_device();
+
+	if (!fpc1020->input_dev) {
+		dev_err(fpc1020->dev, "Input_allocate_device failed.\n");
+		error  = -ENOMEM;
+	}
+
+	if (!error) {
+		fpc1020->input_dev->name = "fpc1020";
+
+		/* Set event bits according to what events we are generating */
+		set_bit(EV_KEY, fpc1020->input_dev->evbit);
+
+        set_bit(KEY_POWER, fpc1020->input_dev->keybit);
+        set_bit(KEY_F2, fpc1020->input_dev->keybit);
+        set_bit(KEY_HOME, fpc1020->input_dev->keybit);
+	set_bit(KEY_FINGERPRINT, fpc1020->input_dev->keybit);
+
+		/* Register the input device */
+		error = input_register_device(fpc1020->input_dev);
+
+
+		if (error) {
+			dev_err(fpc1020->dev, "Input_register_device failed.\n");
+			input_free_device(fpc1020->input_dev);
+			fpc1020->input_dev = NULL;
+		}
+	}
+
+	return error;
+}
+
+void fpc1020_input_destroy(struct fpc1020_data *fpc1020)
+{
+	dev_dbg(fpc1020->dev, "%s\n", __func__);
+
+	if (fpc1020->input_dev != NULL)
+		input_free_device(fpc1020->input_dev);
+}
+
 static const struct attribute_group attribute_group = {
 	.attrs = attributes,
 };
@@ -606,6 +657,12 @@ static irqreturn_t fpc1020_irq_handler(int irq, void *handle)
 	if (fpc1020->fb_black && atomic_read(&fpc1020->wakeup_enabled)) {
 		wake_lock_timeout(&fpc1020->ttw_wl,
 					msecs_to_jiffies(FPC_TTW_HOLD_TIME));
+		
+		/* Report button input to trigger CPU boost */
+		input_report_key(fpc1020->input_dev, KEY_FINGERPRINT, 1);
+		input_sync(fpc1020->input_dev);
+		input_report_key(fpc1020->input_dev, KEY_FINGERPRINT, 0);
+		input_sync(fpc1020->input_dev);
 	}
 
 	sysfs_notify(&fpc1020->dev->kobj, NULL, dev_attr_irq.attr.name);
@@ -734,6 +791,10 @@ static int fpc1020_probe(struct platform_device *pdev)
 	}
 
 	atomic_set(&fpc1020->wakeup_enabled, 1);
+
+	rc = fpc1020_input_init(fpc1020);
+    if (rc)
+		goto exit;
 
 	INIT_WORK(&fpc1020->pm_work, fpc1020_suspend_resume);
 
