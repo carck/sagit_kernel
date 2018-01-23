@@ -2334,11 +2334,11 @@ case "$target" in
 	echo 1 > /proc/sys/kernel/sched_restrict_cluster_spill
 	#start iop
 
-        # disable thermal bcl hotplug to switch governor
-        echo 0 > /sys/module/msm_thermal/core_control/enabled
+    # disable thermal bcl hotplug to switch governor
+    echo 0 > /sys/module/msm_thermal/core_control/enabled
 
-        # online CPU0
-        echo 1 > /sys/devices/system/cpu/cpu0/online
+    # online CPU0
+    echo 1 > /sys/devices/system/cpu/cpu0/online
 	# configure governor settings for little cluster
 	echo "interactive" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
 	echo 1 > /sys/devices/system/cpu/cpu0/cpufreq/interactive/use_sched_load
@@ -2351,10 +2351,10 @@ case "$target" in
 	echo "83 1804800:95" > /sys/devices/system/cpu/cpu0/cpufreq/interactive/target_loads
 	echo 19000 > /sys/devices/system/cpu/cpu0/cpufreq/interactive/min_sample_time
 	echo 79000 > /sys/devices/system/cpu/cpu0/cpufreq/interactive/max_freq_hysteresis
-	echo 518400 > /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq
+	#echo 518400 > /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq
 	echo 1 > /sys/devices/system/cpu/cpu0/cpufreq/interactive/ignore_hispeed_on_notif
-        # online CPU4
-        echo 1 > /sys/devices/system/cpu/cpu4/online
+    # online CPU4
+    echo 1 > /sys/devices/system/cpu/cpu4/online
 	# configure governor settings for big cluster
 	echo "interactive" > /sys/devices/system/cpu/cpu4/cpufreq/scaling_governor
 	echo 1 > /sys/devices/system/cpu/cpu4/cpufreq/interactive/use_sched_load
@@ -2367,7 +2367,7 @@ case "$target" in
 	echo "83 1939200:90 2016000:95" > /sys/devices/system/cpu/cpu4/cpufreq/interactive/target_loads
 	echo 19000 > /sys/devices/system/cpu/cpu4/cpufreq/interactive/min_sample_time
 	echo 79000 > /sys/devices/system/cpu/cpu4/cpufreq/interactive/max_freq_hysteresis
-	echo 806400 > /sys/devices/system/cpu/cpu4/cpufreq/scaling_min_freq
+	#echo 806400 > /sys/devices/system/cpu/cpu4/cpufreq/scaling_min_freq
 	echo 1 > /sys/devices/system/cpu/cpu4/cpufreq/interactive/ignore_hispeed_on_notif
 
         # re-enable thermal and BCL hotplug
