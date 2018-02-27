@@ -1,0 +1,5 @@
+ota-required-cache=0
+ota-type=BLOCK
+post-build=Xiaomi/sagit/sagit:7.1.1/NMF26X/V9.0.6.0.NCACNEI:user/release-keys
+post-timestamp=1511354365
+pre-device=sagit

@@ -1,0 +1,23 @@
+on early-init
+    # Configuration for namespaces support
+    mkdir /var 0770 root system
+    mount tmpfs none /var mode=0770,uid=0,gid=1000
+    mkdir /var/run 0750 root system
+    mkdir /var/run/netns 0700 root root
+
+
+
+on boot
+    # increase limits for the kernel key retention service
+    # this is required for space-encryption
+    write /proc/sys/kernel/keys/maxbytes 200000
+    write /proc/sys/kernel/keys/maxkeys 2000
+    write /proc/sys/kernel/keys/root_maxbytes 200000
+    write /proc/sys/kernel/keys/root_maxkeys 2000
+
+service ssService /system/bin/ssServices
+    class core
+    disabled
+
+on property:sys.miui.securespace.start=true
+    start ssService

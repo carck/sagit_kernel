@@ -1,0 +1,9 @@
+ui_print("SAGIT Kernel installer by carck");
+
+package_extract_file("boot.img", "/dev/block/bootdevice/by-name/boot");
+
+ui_print("Kernel Installed! enjoy :)");
+
+show_progress(0.100000, 0);
+set_progress(1.000000);
+
