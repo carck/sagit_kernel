@@ -7792,14 +7792,15 @@ static int select_energy_cpu_brute(struct task_struct *p, int prev_cpu, int sync
 {
 	struct sched_domain *sd;
 	int target_cpu = prev_cpu, tmp_target, tmp_backup;
-	bool boosted, prefer_idle;
+	bool boosted, prefer_idle, about_to_idle;;
+	int cpu = smp_processor_id();
 
 	schedstat_inc(p, se.statistics.nr_wakeups_secb_attempts);
 	schedstat_inc(this_rq(), eas_stats.secb_attempts);
 
-	if (sysctl_sched_sync_hint_enable && sync) {
-		int cpu = smp_processor_id();
+	about_to_idle = (cpu_rq(cpu)->nr_running < 2);
 
+	if (sysctl_sched_sync_hint_enable && sync && about_to_idle) {
 		if (cpumask_test_cpu(cpu, tsk_cpus_allowed(p))) {
 			schedstat_inc(p, se.statistics.nr_wakeups_secb_sync);
 			schedstat_inc(this_rq(), eas_stats.secb_sync);
