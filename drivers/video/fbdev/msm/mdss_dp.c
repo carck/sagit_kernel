@@ -3367,6 +3367,7 @@ static int mdss_dp_event_thread(void *data)
 {
 	unsigned long flag;
 	u32 todo = 0, config;
+	int ret;
 
 	struct mdss_dp_event_data *ev_data;
 	struct mdss_dp_event *ev;
@@ -3379,10 +3380,16 @@ static int mdss_dp_event_thread(void *data)
 
 	pr_debug("starting\n");
 	while (!kthread_should_stop()) {
-		wait_event(ev_data->event_q,
+		ret = wait_event_interruptible(ev_data->event_q,
 			(ev_data->pndx != ev_data->gndx) ||
 			kthread_should_stop() ||
 			kthread_should_park());
+
+		if (ret) {
+			pr_info("%s: interrupted", __func__);
+			continue;
+		}
+
 		if (kthread_should_stop())
 			return 0;
 
