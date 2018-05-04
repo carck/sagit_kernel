@@ -86,3 +86,8 @@ SCHED_FEAT(ENERGY_AWARE, false)
  * restrictions.
  */
 SCHED_FEAT(MIN_CAPACITY_CAPPING, false)
+
+/*
+ * UtilEstimation. Use estimated CPU utilization.
+ */
+SCHED_FEAT(UTIL_EST, false)
