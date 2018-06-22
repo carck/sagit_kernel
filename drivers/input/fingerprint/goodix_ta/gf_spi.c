@@ -660,6 +660,7 @@ static void set_fingerprintd_nice(int nice)
 
 static void goodix_suspend_resume(struct work_struct *work)
 {
+	char temp[4] = { 0x0 };
 	struct gf_dev *data =
 		container_of(work, typeof(*data), pm_work);
 
@@ -668,10 +669,27 @@ static void goodix_suspend_resume(struct work_struct *work)
 	 * the fingerprint sensor is responsive and that the haptic
 	 * response on successful verification always fires.
 	 */
-	if (!data->fb_black)
+	if (!data->fb_black) {
 		set_fingerprintd_nice(0);
-	else
+#if defined(GF_NETLINK_ENABLE)
+		temp[0] = GF_NET_EVENT_FB_UNBLACK;
+		sendnlmsg(temp);
+#elif defined (GF_FASYNC)
+		if (gf_dev->async) {
+			kill_fasync(&gf_dev->async, SIGIO, POLL_IN);
+		}
+#endif
+	} else {
 		set_fingerprintd_nice(-1);
+#if defined(GF_NETLINK_ENABLE)
+		temp[0] = GF_NET_EVENT_FB_BLACK;
+		sendnlmsg(temp);
+#elif defined (GF_FASYNC)
+		if (gf_dev->async) {
+			kill_fasync(&gf_dev->async, SIGIO, POLL_IN);
+		}
+#endif
+	}
 }
 
 static int goodix_fb_state_chg_callback(struct notifier_block *nb,
@@ -680,7 +698,7 @@ static int goodix_fb_state_chg_callback(struct notifier_block *nb,
 	struct gf_dev *gf_dev;
 	struct fb_event *evdata = data;
 	unsigned int blank;
-	char temp[4] = { 0x0 };
+	
 
 	if (val != FB_EVENT_BLANK)
 		return 0;
@@ -695,28 +713,12 @@ static int goodix_fb_state_chg_callback(struct notifier_block *nb,
 				gf_dev->fb_black = 1;
 				gf_dev->wait_finger_down = true;
 				queue_work(system_highpri_wq, &gf_dev->pm_work);
-#if defined(GF_NETLINK_ENABLE)
-				temp[0] = GF_NET_EVENT_FB_BLACK;
-				sendnlmsg(temp);
-#elif defined (GF_FASYNC)
-				if (gf_dev->async) {
-					kill_fasync(&gf_dev->async, SIGIO, POLL_IN);
-				}
-#endif
 			}
 			break;
 		case FB_BLANK_UNBLANK:
 			if (gf_dev->device_available == 1) {
 				gf_dev->fb_black = 0;
 				queue_work(system_highpri_wq, &gf_dev->pm_work);
-#if defined(GF_NETLINK_ENABLE)
-				temp[0] = GF_NET_EVENT_FB_UNBLACK;
-				sendnlmsg(temp);
-#elif defined (GF_FASYNC)
-				if (gf_dev->async) {
-					kill_fasync(&gf_dev->async, SIGIO, POLL_IN);
-				}
-#endif
 			}
 			break;
 		default:
