@@ -75,6 +75,7 @@ static LIST_HEAD(device_list);
 static DEFINE_MUTEX(device_list_lock);
 static struct wake_lock fp_wakelock;
 static struct gf_dev gf;
+static struct task_struct *process;
 
 
 struct gf_key_map maps[] = {
@@ -82,6 +83,7 @@ struct gf_key_map maps[] = {
 	{ EV_KEY, GF_KEY_INPUT_MENU },
 	{ EV_KEY, GF_KEY_INPUT_BACK },
 	{ EV_KEY, GF_KEY_INPUT_POWER },
+	{ EV_KEY, KEY_FINGERPRINT },
 #if defined(SUPPORT_NAV_EVENT)
 	{ EV_KEY, GF_NAV_INPUT_UP },
 	{ EV_KEY, GF_NAV_INPUT_DOWN },
@@ -535,6 +537,8 @@ static int gf_open(struct inode *inode, struct file *filp)
 
 	mutex_lock(&device_list_lock);
 
+	process = current;
+
 	list_for_each_entry(gf_dev, &device_list, device_entry) {
 		if (gf_dev->devt == inode->i_rdev) {
 			pr_debug("Found\n");
@@ -623,6 +627,7 @@ static int gf_release(struct inode *inode, struct file *filp)
 		gpio_free(gf_dev->reset_gpio);
 		gf_power_off(gf_dev);
 	}
+	process = NULL;
 	mutex_unlock(&device_list_lock);
 	return status;
 }
@@ -646,16 +651,9 @@ static const struct file_operations gf_fops = {
 
 static void set_fingerprintd_nice(int nice)
 {
-	struct task_struct *p;
-
-	read_lock(&tasklist_lock);
-	for_each_process(p) {
-		if (!memcmp(p->comm, "fingerprintd", 13)) {
-			set_user_nice(p, nice);
-			break;
-		}
+	if(process){
+		set_user_nice(process, nice);
 	}
-	read_unlock(&tasklist_lock);
 }
 
 static void goodix_suspend_resume(struct work_struct *work)
