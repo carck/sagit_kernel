@@ -89,8 +89,17 @@ static void update_online_cpu_policy(void)
 
 	/* Trigger cpufreq notifier for online CPUs */
 	get_online_cpus();
-	for_each_online_cpu(cpu)
-		cpufreq_update_policy(cpu);
+	for_each_online_cpu(cpu) {
+		/*
+		 * both clusters have synchronous cpus
+		 * no need to upldate the policy for each core
+		 * individually, saving at least one [down|up] write
+		 * and a [lock|unlock] irqrestore per pass
+		 */
+		if ((cpu & 1) == 0) {
+			cpufreq_update_policy(cpu);
+		}
+	}
 	put_online_cpus();
 }
 
