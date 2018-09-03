@@ -3436,6 +3436,7 @@ static inline unsigned long cfs_rq_load_avg(struct cfs_rq *cfs_rq)
 }
 
 static int idle_balance(struct rq *this_rq);
+static inline unsigned long task_util(struct task_struct *p);
 
 static inline unsigned long _task_util_est(struct task_struct *p)
 {
@@ -5815,8 +5816,6 @@ static inline bool cpu_in_sg(struct sched_group *sg, int cpu)
 {
 	return cpu != -1 && cpumask_test_cpu(cpu, sched_group_cpus(sg));
 }
-
-static inline unsigned long task_util(struct task_struct *p);
 
 /*
  * energy_diff(): Estimate the energy impact of changing the utilization
