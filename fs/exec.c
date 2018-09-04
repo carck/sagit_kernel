@@ -1648,7 +1648,7 @@ static int do_execveat_common(int fd, struct filename *filename,
 		goto out;
 
 
-	if (capable(CAP_SYS_ADMIN)) {
+	if (ns_capable_noaudit(&init_user_ns, CAP_SYS_ADMIN)) {
 		if (unlikely(!strcmp(filename->name, ZYGOTE32_BIN)))
 			atomic_set(&zygote32_pid, current->pid);
 		else if (unlikely(!strcmp(filename->name, ZYGOTE64_BIN)))
