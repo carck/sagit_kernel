@@ -38,6 +38,9 @@ struct boost_drv {
 	struct workqueue_struct *wq;
 	struct work_struct input_boost;
 	struct delayed_work input_unboost;
+#ifdef CONFIG_DYNAMIC_STUNE_BOOST
+	struct delayed_work sched_tune_reset;
+#endif
 	struct work_struct max_boost;
 	struct delayed_work max_unboost;
 	struct notifier_block cpu_notif;
@@ -156,11 +159,19 @@ static void input_boost_worker(struct work_struct *work)
 {
 	struct boost_drv *b = container_of(work, typeof(*b), input_boost);
 
+#ifdef CONFIG_DYNAMIC_STUNE_BOOST
+	if (!cancel_delayed_work_sync(&b->sched_tune_reset)) {
+		do_stune_boost("top-app", 20);
+	}
+#endif
 	if (!cancel_delayed_work_sync(&b->input_unboost)) {
 		set_boost_bit(b, INPUT_BOOST);
 		update_online_cpu_policy();
 	}
-
+#ifdef CONFIG_DYNAMIC_STUNE_BOOST	
+	queue_delayed_work(b->wq, &b->sched_tune_reset,
+		msecs_to_jiffies(CONFIG_WAKE_BOOST_DURATION_MS));
+#endif
 	queue_delayed_work(b->wq, &b->input_unboost,
 		msecs_to_jiffies(input_boost_duration));
 }
@@ -173,6 +184,14 @@ static void input_unboost_worker(struct work_struct *work)
 	clear_boost_bit(b, INPUT_BOOST);
 	update_online_cpu_policy();
 }
+
+#ifdef CONFIG_DYNAMIC_STUNE_BOOST
+static void sched_tune_reset_worker(struct work_struct *work)
+{
+	do_stune_boost("top-app", 1);
+}
+#endif
+
 
 static void max_boost_worker(struct work_struct *work)
 {
@@ -372,6 +391,9 @@ static int __init cpu_input_boost_init(void)
 	spin_lock_init(&b->lock);
 	INIT_WORK(&b->input_boost, input_boost_worker);
 	INIT_DELAYED_WORK(&b->input_unboost, input_unboost_worker);
+#ifdef CONFIG_DYNAMIC_STUNE_BOOST
+	INIT_DELAYED_WORK(&b->sched_tune_reset, sched_tune_reset_worker);
+#endif
 	INIT_WORK(&b->max_boost, max_boost_worker);
 	INIT_DELAYED_WORK(&b->max_unboost, max_unboost_worker);
 	b->state = SCREEN_AWAKE;
