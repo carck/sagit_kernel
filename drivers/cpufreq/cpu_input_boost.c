@@ -118,12 +118,14 @@ static void unboost_all_cpus(struct boost_drv *b)
 
 void cpu_input_boost_kick(void)
 {
+#if 0
 	struct boost_drv *b = boost_drv_g;
 
 	if (!b)
 		return;
 
 	queue_work(b->wq, &b->input_boost);
+#endif
 }
 
 static void __cpu_input_boost_kick_max(struct boost_drv *b,
@@ -170,7 +172,7 @@ static void input_boost_worker(struct work_struct *work)
 	}
 #ifdef CONFIG_DYNAMIC_STUNE_BOOST	
 	queue_delayed_work(b->wq, &b->sched_tune_reset,
-		msecs_to_jiffies(CONFIG_WAKE_BOOST_DURATION_MS));
+		msecs_to_jiffies(CONFIG_WAKE_BOOST_DURATION_MS * 5));
 #endif
 	queue_delayed_work(b->wq, &b->input_unboost,
 		msecs_to_jiffies(input_boost_duration));
@@ -188,7 +190,8 @@ static void input_unboost_worker(struct work_struct *work)
 #ifdef CONFIG_DYNAMIC_STUNE_BOOST
 static void sched_tune_reset_worker(struct work_struct *work)
 {
-	do_stune_boost("top-app", 1);
+	reset_stune_boost("top-app");
+	update_online_cpu_policy();
 }
 #endif
 
