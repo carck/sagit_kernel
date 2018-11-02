@@ -99,7 +99,7 @@ static void update_online_cpu_policy(void)
 		 * individually, saving at least one [down|up] write
 		 * and a [lock|unlock] irqrestore per pass
 		 */
-		if ((cpu & 1) == 0) {
+		if (cpu == 0 || cpu == 4) {
 			cpufreq_update_policy(cpu);
 		}
 	}
