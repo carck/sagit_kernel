@@ -31,8 +31,7 @@ module_param(input_boost_duration, short, 0644);
 /* Available bits for boost_drv state */
 #define SCREEN_AWAKE		(1U << 0)
 #define INPUT_BOOST		(1U << 1)
-#define WAKE_BOOST		(1U << 2)
-#define MAX_BOOST		(1U << 3)
+#define MAX_BOOST		(1U << 2)
 
 struct boost_drv {
 	struct workqueue_struct *wq;
@@ -45,8 +44,6 @@ struct boost_drv {
 	struct delayed_work max_unboost;
 	struct notifier_block cpu_notif;
 	struct notifier_block fb_notif;
-	unsigned long max_boost_expires;
-	atomic_t max_boost_dur;
 	spinlock_t lock;
 	u32 state;
 };
@@ -108,53 +105,40 @@ static void update_online_cpu_policy(void)
 
 static void unboost_all_cpus(struct boost_drv *b)
 {
-	if (!cancel_delayed_work_sync(&b->input_unboost) &&
-		!cancel_delayed_work_sync(&b->max_unboost))
-		return;
+	if (cancel_delayed_work_sync(&b->sched_tune_reset)) {		
+		reset_stune_boost("top-app");
+	}
 
-	clear_boost_bit(b, INPUT_BOOST | WAKE_BOOST | MAX_BOOST);
-	update_online_cpu_policy();
+	if (cancel_delayed_work_sync(&b->max_unboost)) {
+		clear_boost_bit(b, INPUT_BOOST | MAX_BOOST);
+		update_online_cpu_policy();
+	}
 }
 
 void cpu_input_boost_kick(void)
 {
-#if 0
 	struct boost_drv *b = boost_drv_g;
 
 	if (!b)
 		return;
 
 	queue_work(b->wq, &b->input_boost);
-#endif
 }
 
-static void __cpu_input_boost_kick_max(struct boost_drv *b,
-	unsigned int duration_ms)
+void cpu_input_boost_kick_max(void)
 {
-	unsigned long new_expires;
-
-	/* Skip this boost if there's already a longer boost in effect */
-	spin_lock(&b->lock);
-	new_expires = jiffies + msecs_to_jiffies(duration_ms);
-	if (time_after(b->max_boost_expires, new_expires)) {
-		spin_unlock(&b->lock);
-		return;
-	}
-	b->max_boost_expires = new_expires;
-	spin_unlock(&b->lock);
-
-	atomic_set(&b->max_boost_dur, duration_ms);
-	queue_work(b->wq, &b->max_boost);
-}
-
-void cpu_input_boost_kick_max(unsigned int duration_ms)
-{
+	u32 state;
 	struct boost_drv *b = boost_drv_g;
 
 	if (!b)
 		return;
 
-	__cpu_input_boost_kick_max(b, duration_ms);
+	state = get_boost_state(b);
+
+	if (!(state & SCREEN_AWAKE))
+		return;
+
+	queue_work(b->wq, &b->max_boost);
 }
 
 static void input_boost_worker(struct work_struct *work)
@@ -191,7 +175,6 @@ static void input_unboost_worker(struct work_struct *work)
 static void sched_tune_reset_worker(struct work_struct *work)
 {
 	reset_stune_boost("top-app");
-	update_online_cpu_policy();
 }
 #endif
 
@@ -206,7 +189,7 @@ static void max_boost_worker(struct work_struct *work)
 	}
 
 	queue_delayed_work(b->wq, &b->max_unboost,
-		msecs_to_jiffies(atomic_read(&b->max_boost_dur)));
+		msecs_to_jiffies(CONFIG_WAKE_BOOST_DURATION_MS));
 }
 
 static void max_unboost_worker(struct work_struct *work)
@@ -214,7 +197,7 @@ static void max_unboost_worker(struct work_struct *work)
 	struct boost_drv *b =
 		container_of(to_delayed_work(work), typeof(*b), max_unboost);
 
-	clear_boost_bit(b, WAKE_BOOST | MAX_BOOST);
+	clear_boost_bit(b, MAX_BOOST);
 	update_online_cpu_policy();
 }
 
@@ -264,7 +247,7 @@ static int fb_notifier_cb(struct notifier_block *nb,
 	/* Boost when the screen turns on and unboost when it turns off */
 	if (*blank == FB_BLANK_UNBLANK) {
 		set_boost_bit(b, SCREEN_AWAKE);
-		__cpu_input_boost_kick_max(b, CONFIG_WAKE_BOOST_DURATION_MS);
+		queue_work(b->wq, &b->max_boost);
 	} else {
 		clear_boost_bit(b, SCREEN_AWAKE);
 		unboost_all_cpus(b);
