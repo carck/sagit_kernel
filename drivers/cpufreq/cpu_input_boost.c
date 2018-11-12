@@ -20,6 +20,9 @@
 #include <linux/moduleparam.h>
 #include <linux/slab.h>
 
+#define MAX_FREQ_HP 1958400
+#define MAX_FREQ_LP 1747200
+
 static unsigned int input_boost_freq_lp = CONFIG_INPUT_BOOST_FREQ_LP;
 static unsigned int input_boost_freq_hp = CONFIG_INPUT_BOOST_FREQ_PERF;
 static unsigned short input_boost_duration = CONFIG_INPUT_BOOST_DURATION_MS;
@@ -38,10 +41,11 @@ struct boost_drv {
 	struct work_struct input_boost;
 	struct delayed_work input_unboost;
 #ifdef CONFIG_DYNAMIC_STUNE_BOOST
-	struct delayed_work sched_tune_reset;
+	struct delayed_work stune_unboost;
 #endif
 	struct work_struct max_boost;
 	struct delayed_work max_unboost;
+	struct delayed_work max_limit;
 	struct notifier_block cpu_notif;
 	struct notifier_block fb_notif;
 	spinlock_t lock;
@@ -103,18 +107,6 @@ static void update_online_cpu_policy(void)
 	put_online_cpus();
 }
 
-static void unboost_all_cpus(struct boost_drv *b)
-{
-	if (cancel_delayed_work_sync(&b->sched_tune_reset)) {		
-		reset_stune_boost("top-app");
-	}
-
-	if (cancel_delayed_work_sync(&b->max_unboost)) {
-		clear_boost_bit(b, INPUT_BOOST | MAX_BOOST);
-		update_online_cpu_policy();
-	}
-}
-
 void cpu_input_boost_kick(void)
 {
 	struct boost_drv *b = boost_drv_g;
@@ -146,7 +138,7 @@ static void input_boost_worker(struct work_struct *work)
 	struct boost_drv *b = container_of(work, typeof(*b), input_boost);
 
 #ifdef CONFIG_DYNAMIC_STUNE_BOOST
-	if (!cancel_delayed_work_sync(&b->sched_tune_reset)) {
+	if (!cancel_delayed_work_sync(&b->stune_unboost)) {
 		do_stune_boost("top-app", 20);
 	}
 #endif
@@ -155,7 +147,7 @@ static void input_boost_worker(struct work_struct *work)
 		update_online_cpu_policy();
 	}
 #ifdef CONFIG_DYNAMIC_STUNE_BOOST	
-	queue_delayed_work(b->wq, &b->sched_tune_reset,
+	queue_delayed_work(b->wq, &b->stune_unboost,
 		msecs_to_jiffies(CONFIG_WAKE_BOOST_DURATION_MS * 5));
 #endif
 	queue_delayed_work(b->wq, &b->input_unboost,
@@ -172,7 +164,7 @@ static void input_unboost_worker(struct work_struct *work)
 }
 
 #ifdef CONFIG_DYNAMIC_STUNE_BOOST
-static void sched_tune_reset_worker(struct work_struct *work)
+static void stune_unboost_worker(struct work_struct *work)
 {
 	reset_stune_boost("top-app");
 }
@@ -190,6 +182,9 @@ static void max_boost_worker(struct work_struct *work)
 
 	queue_delayed_work(b->wq, &b->max_unboost,
 		msecs_to_jiffies(CONFIG_WAKE_BOOST_DURATION_MS));
+	
+	if(delayed_work_pending(&b->max_limit))
+		cancel_delayed_work(&b->max_limit);
 }
 
 static void max_unboost_worker(struct work_struct *work)
@@ -198,6 +193,11 @@ static void max_unboost_worker(struct work_struct *work)
 		container_of(to_delayed_work(work), typeof(*b), max_unboost);
 
 	clear_boost_bit(b, MAX_BOOST);
+	update_online_cpu_policy();
+}
+
+static void max_limit_worker(struct work_struct *work)
+{
 	update_online_cpu_policy();
 }
 
@@ -212,6 +212,12 @@ static int cpu_notifier_cb(struct notifier_block *nb,
 		return NOTIFY_OK;
 
 	state = get_boost_state(b);
+
+	if (state & SCREEN_AWAKE) {
+		policy->max = policy->cpuinfo.max_freq;
+	} else {
+		policy->max = policy->cpu > 3 ? MAX_FREQ_HP : MAX_FREQ_LP;
+	}
 
 	/* Boost CPU to max frequency for max boost */
 	if (state & MAX_BOOST) {
@@ -250,7 +256,7 @@ static int fb_notifier_cb(struct notifier_block *nb,
 		queue_work(b->wq, &b->max_boost);
 	} else {
 		clear_boost_bit(b, SCREEN_AWAKE);
-		unboost_all_cpus(b);
+		queue_delayed_work(system_power_efficient_wq, &b->max_limit, 5 * HZ);
 	}
 
 	return NOTIFY_OK;
@@ -378,10 +384,11 @@ static int __init cpu_input_boost_init(void)
 	INIT_WORK(&b->input_boost, input_boost_worker);
 	INIT_DELAYED_WORK(&b->input_unboost, input_unboost_worker);
 #ifdef CONFIG_DYNAMIC_STUNE_BOOST
-	INIT_DELAYED_WORK(&b->sched_tune_reset, sched_tune_reset_worker);
+	INIT_DELAYED_WORK(&b->stune_unboost, stune_unboost_worker);
 #endif
 	INIT_WORK(&b->max_boost, max_boost_worker);
 	INIT_DELAYED_WORK(&b->max_unboost, max_unboost_worker);
+	INIT_DELAYED_WORK(&b->max_limit, max_limit_worker);
 	b->state = SCREEN_AWAKE;
 
 	b->cpu_notif.notifier_call = cpu_notifier_cb;
