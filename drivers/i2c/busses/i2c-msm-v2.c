@@ -85,6 +85,7 @@ const char *i2c_msm_err_str_table[] = {
 static void i2c_msm_dbg_dump_diag(struct i2c_msm_ctrl *ctrl,
 				bool use_param_vals, u32 status, u32 qup_op)
 {
+#if 0
 	struct i2c_msm_xfer *xfer = &ctrl->xfer;
 	const char *str = i2c_msm_err_str_table[xfer->err];
 	char buf[I2C_MSM_REG_2_STR_BUF_SZ];
@@ -119,6 +120,7 @@ static void i2c_msm_dbg_dump_diag(struct i2c_msm_ctrl *ctrl,
 		xfer->cur_buf.is_rx ? "rx" : "tx", xfer->rx_cnt, xfer->tx_cnt,
 		i2c_msm_mode_str_tbl[xfer->mode_id], xfer->msgs->addr,
 		status, qup_op);
+#endif
 }
 
 static u32 i2c_msm_reg_io_modes_out_blk_sz(u32 qup_io_modes)
