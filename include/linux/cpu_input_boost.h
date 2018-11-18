@@ -15,12 +15,12 @@
 
 #ifdef CONFIG_CPU_INPUT_BOOST
 void cpu_input_boost_kick(void);
-void cpu_input_boost_kick_max(void);
+void cpu_input_boost_kick_max(bool force);
 #else
 static inline void cpu_input_boost_kick(void)
 {
 }
-static inline void cpu_input_boost_kick_max(void)
+static inline void cpu_input_boost_kick_max(bool force)
 {
 }
 #endif

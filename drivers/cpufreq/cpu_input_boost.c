@@ -49,6 +49,7 @@ struct boost_drv {
 	struct notifier_block cpu_notif;
 	struct notifier_block fb_notif;
 	spinlock_t lock;
+	u64 last_input_time;
 	u32 state;
 };
 
@@ -117,20 +118,26 @@ void cpu_input_boost_kick(void)
 	queue_work(b->wq, &b->input_boost);
 }
 
-void cpu_input_boost_kick_max(void)
+void cpu_input_boost_kick_max(bool force)
 {
+	u64 now;
 	u32 state;
 	struct boost_drv *b = boost_drv_g;
 
 	if (!b)
 		return;
 
-	state = get_boost_state(b);
+	now = ktime_get_ns();
 
-	if (!(state & SCREEN_AWAKE))
+	if ((now - b->last_input_time) < (input_boost_duration * USEC_PER_MSEC))
 		return;
 
-	queue_work(b->wq, &b->max_boost);
+	b->last_input_time = now;
+
+	state = get_boost_state(b);
+
+	if (force || (state & SCREEN_AWAKE))
+		queue_work(b->wq, &b->max_boost);
 }
 
 static void input_boost_worker(struct work_struct *work)
@@ -253,7 +260,7 @@ static int fb_notifier_cb(struct notifier_block *nb,
 	/* Boost when the screen turns on and unboost when it turns off */
 	if (*blank == FB_BLANK_UNBLANK) {
 		set_boost_bit(b, SCREEN_AWAKE);
-		queue_work(b->wq, &b->max_boost);
+		cpu_input_boost_kick_max(false);
 	} else {
 		clear_boost_bit(b, SCREEN_AWAKE);
 		queue_delayed_work(system_power_efficient_wq, &b->max_limit, 5 * HZ);

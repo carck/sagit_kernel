@@ -1776,7 +1776,7 @@ long _do_fork(unsigned long clone_flags,
 
 	/* Boost CPU to the max when userspace launches an app */
 	if (is_zygote_pid(current->pid))
-		cpu_input_boost_kick_max();
+		cpu_input_boost_kick_max(false);
 
 	/*
 	 * Determine whether and which event to report to ptracer.  When

@@ -42,6 +42,7 @@
 #include <linux/cpufreq.h>
 #include <linux/wakelock.h>
 #include <linux/mdss_io_util.h>
+#include <linux/cpu_input_boost.h>
 
 #include "gf_spi.h"
 
@@ -508,6 +509,7 @@ static irqreturn_t gf_irq(int irq, void *handle)
 	temp[0] = GF_NET_EVENT_IRQ;
 	if (gf_dev->fb_black) {
 		wake_lock_timeout(&fp_wakelock, msecs_to_jiffies(WAKELOCK_HOLD_TIME));
+		cpu_input_boost_kick_max(true);
 	}
 	sendnlmsg(temp);
 	if ((gf_dev->wait_finger_down == true) && (gf_dev->device_available == 1) && (gf_dev->fb_black == 1)) {
