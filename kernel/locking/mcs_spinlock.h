@@ -30,8 +30,6 @@ struct mcs_spinlock {
  */
 #define arch_mcs_spin_lock_contended(l)					\
 do {									\
-	while (!(smp_load_acquire(l)))					\
-		cpu_relax();						\
 	smp_cond_load_acquire(l, VAL);					\
 } while (0)
 #endif
