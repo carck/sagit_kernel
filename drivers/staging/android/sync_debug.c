@@ -35,6 +35,7 @@ static DEFINE_SPINLOCK(sync_timeline_list_lock);
 static LIST_HEAD(sync_fence_list_head);
 static DEFINE_SPINLOCK(sync_fence_list_lock);
 
+#ifdef CONFIG_SYNC_DEBUG
 void sync_timeline_debug_add(struct sync_timeline *obj)
 {
 	unsigned long flags;
@@ -70,6 +71,7 @@ void sync_fence_debug_remove(struct sync_fence *fence)
 	list_del(&fence->sync_fence_list);
 	spin_unlock_irqrestore(&sync_fence_list_lock, flags);
 }
+#endif
 
 static const char *sync_status_str(int status)
 {
@@ -225,6 +227,7 @@ static __init int sync_debugfs_init(void)
 }
 late_initcall(sync_debugfs_init);
 
+#ifdef CONFIG_SYNC_DEBUG
 #define DUMP_CHUNK 256
 static char sync_dump_buf[64 * 1024];
 void sync_dump(void)
@@ -250,5 +253,6 @@ void sync_dump(void)
 		}
 	}
 }
+#endif
 
 #endif
