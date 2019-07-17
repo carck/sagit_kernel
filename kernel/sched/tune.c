@@ -22,7 +22,7 @@ extern struct target_nrg schedtune_target_nrg;
 
 #ifdef CONFIG_DYNAMIC_STUNE_BOOST
 static DEFINE_MUTEX(stune_boost_mutex);
-static struct schedtune *getSchedtune(char *st_name);
+static struct schedtune *getSchedtune(void);
 static int dynamic_boost_write(struct schedtune *st, int boost);
 #endif /* CONFIG_DYNAMIC_STUNE_BOOST */
 
@@ -840,25 +840,30 @@ schedtune_init_cgroups(void)
 }
 
 #ifdef CONFIG_DYNAMIC_STUNE_BOOST
-static struct schedtune *getSchedtune(char *st_name)
+static struct schedtune *top_app = NULL;
+static struct schedtune *getSchedtune()
 {
 	int idx;
 
-	for (idx = 1; idx < BOOSTGROUPS_COUNT; ++idx) {
-		char name_buf[NAME_MAX + 1];
-		struct schedtune *st = allocated_group[idx];
+	if(unlikely(top_app == NULL)) {
+		for (idx = 1; idx < BOOSTGROUPS_COUNT; ++idx) {
+			char name_buf[NAME_MAX + 1];
+			struct schedtune *st = allocated_group[idx];
 
-		if (!st) {
-			pr_warn("SCHEDTUNE: Could not find %s\n", st_name);
-			break;
+			if (!st) {
+				pr_warn("SCHEDTUNE: Could not find top-app\n");
+				break;
+			}
+
+			cgroup_name(st->css.cgroup, name_buf, sizeof(name_buf));
+			if (strncmp(name_buf, "top-app", 7) == 0){
+				top_app = st;
+				break;
+			}
 		}
-
-		cgroup_name(st->css.cgroup, name_buf, sizeof(name_buf));
-		if (strncmp(name_buf, st_name, strlen(st_name)) == 0)
-			return st;
 	}
 
-	return NULL;
+	return top_app;
 }
 
 static int dynamic_boost_write(struct schedtune *st, int boost)
@@ -875,10 +880,10 @@ static int dynamic_boost_write(struct schedtune *st, int boost)
 	return ret;
 }
 
-int do_stune_boost(char *st_name, int boost)
+int do_stune_boost(int boost)
 {
 	int ret = 0;
-	struct schedtune *st = getSchedtune(st_name);
+	struct schedtune *st = getSchedtune();
 
 	if (!st)
 		return -EINVAL;
@@ -894,10 +899,10 @@ int do_stune_boost(char *st_name, int boost)
 	return ret;
 }
 
-int reset_stune_boost(char *st_name)
+int reset_stune_boost(void)
 {
 	int ret = 0;
-	struct schedtune *st = getSchedtune(st_name);
+	struct schedtune *st = getSchedtune();
 
 	if (!st)
 		return -EINVAL;

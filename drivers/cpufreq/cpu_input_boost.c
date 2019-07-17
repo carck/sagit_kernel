@@ -146,7 +146,7 @@ static void input_boost_worker(struct work_struct *work)
 
 #ifdef CONFIG_DYNAMIC_STUNE_BOOST
 	if (!cancel_delayed_work_sync(&b->stune_unboost)) {
-		do_stune_boost("top-app", 20);
+		do_stune_boost(20);
 	}
 #endif
 	if (!cancel_delayed_work_sync(&b->input_unboost)) {
@@ -173,7 +173,7 @@ static void input_unboost_worker(struct work_struct *work)
 #ifdef CONFIG_DYNAMIC_STUNE_BOOST
 static void stune_unboost_worker(struct work_struct *work)
 {
-	reset_stune_boost("top-app");
+	reset_stune_boost();
 }
 #endif
 
