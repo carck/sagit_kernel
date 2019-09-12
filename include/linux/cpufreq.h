@@ -214,11 +214,15 @@ void cpufreq_stats_create_table(struct cpufreq_policy *policy);
 void cpufreq_stats_free_table(struct cpufreq_policy *policy);
 void cpufreq_stats_record_transition(struct cpufreq_policy *policy,
 				     unsigned int new_freq);
+void cpufreq_stats_record_index_transition(struct cpufreq_policy *policy,
+				     unsigned int new_freq);
 #else
 static inline void cpufreq_stats_create_table(struct cpufreq_policy *policy) { }
 static inline void cpufreq_stats_free_table(struct cpufreq_policy *policy) { }
 static inline void cpufreq_stats_record_transition(struct cpufreq_policy *policy,
 						   unsigned int new_freq) { }
+static inline void cpufreq_stats_record_index_transition(struct cpufreq_policy *policy,
+				     unsigned int new_freq) {}
 #endif /* CONFIG_CPU_FREQ_STAT */
 
 /*********************************************************************

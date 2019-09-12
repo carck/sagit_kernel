@@ -242,3 +242,30 @@ void cpufreq_stats_record_transition(struct cpufreq_policy *policy,
 #endif
 	stats->total_trans++;
 }
+
+
+void cpufreq_stats_record_index_transition(struct cpufreq_policy *policy,
+				     unsigned int new_index)
+{
+	struct cpufreq_stats *stats = policy->stats;
+	int old_index;
+
+	if (!stats) {
+		pr_debug("%s: No stats found\n", __func__);
+		return;
+	}
+
+	old_index = stats->last_index;
+
+	/* We can't do stats->time_in_state[-1]= .. */
+	if (old_index == -1 || new_index == -1 || old_index == new_index)
+		return;
+
+	cpufreq_stats_update(stats);
+
+	stats->last_index = new_index;
+#ifdef CONFIG_CPU_FREQ_STAT_DETAILS
+	stats->trans_table[old_index * stats->max_state + new_index]++;
+#endif
+	stats->total_trans++;
+}
