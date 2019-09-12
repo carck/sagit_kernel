@@ -82,7 +82,7 @@ unsigned int msm_cpufreq_fast_switch(struct cpufreq_policy *policy,
 		return 0;
 	}
 
-	table = cpufreq_frequency_get_table(policy->cpu);
+	table = policy->freq_table;
 	if (!table) {
 		return 0;
 	}
@@ -124,7 +124,7 @@ static int msm_cpufreq_target(struct cpufreq_policy *policy,
 		goto done;
 	}
 
-	table = cpufreq_frequency_get_table(policy->cpu);
+	table = policy->freq_table;
 	if (!table) {
 		pr_err("cpufreq: Failed to get frequency table for CPU%u\n",
 		       policy->cpu);
@@ -162,7 +162,7 @@ static unsigned int msm_cpufreq_resolve_freq(struct cpufreq_policy *policy,
 	unsigned int freq;
 	struct cpufreq_frequency_table *table;
 
-	table = cpufreq_frequency_get_table(policy->cpu);
+	table = policy->freq_table;
 	if (!table) {
 		return target_freq;
 	}
