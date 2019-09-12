@@ -2581,16 +2581,20 @@ static struct notifier_block __refdata cpufreq_cpu_notifier = {
  *********************************************************************/
 static int cpufreq_boost_set_sw(int state)
 {
+	struct cpufreq_frequency_table *freq_table;
 	struct cpufreq_policy *policy;
 	int ret = -EINVAL;
 
 	for_each_active_policy(policy) {
-		freq_table = freq_table = policy->freq_table;
+		freq_table = policy->freq_table;
 		if (freq_table) {
 			ret = cpufreq_frequency_table_cpuinfo(policy,
 							freq_table);
 			if (ret) {
 				pr_err("%s: Policy frequency update failed\n",
+					__func__);
+				break;
+			}
 		}
 
 		down_write(&policy->rwsem);
