@@ -42,6 +42,8 @@ struct cpufreq_suspend_t {
 };
 
 static DEFINE_PER_CPU(struct cpufreq_suspend_t, suspend_data);
+static DEFINE_PER_CPU(int, cached_resolve_idx);
+static DEFINE_PER_CPU(unsigned int, cached_resolve_freq);
 
 static int set_cpu_freq(struct cpufreq_policy *policy, unsigned int new_freq,
 			unsigned int index)
@@ -74,7 +76,7 @@ unsigned int msm_cpufreq_fast_switch(struct cpufreq_policy *policy,
 	int index;
 	unsigned long rate;
 	struct cpufreq_frequency_table *table;
-
+	int first_cpu = cpumask_first(policy->related_cpus);
 
 	if (per_cpu(suspend_data, policy->cpu).device_suspended) {
 		return 0;
@@ -85,9 +87,13 @@ unsigned int msm_cpufreq_fast_switch(struct cpufreq_policy *policy,
 		return 0;
 	}
 	
-	if (cpufreq_frequency_table_target(policy, table, target_freq, CPUFREQ_RELATION_L,
-			&index)) {
-		return 0;
+	if (per_cpu(cached_resolve_freq, first_cpu) == target_freq){
+		index = per_cpu(cached_resolve_idx, first_cpu);
+	} else{
+		if (cpufreq_frequency_table_target(policy, table, target_freq, CPUFREQ_RELATION_L,
+				&index)) {
+			return 0;
+		}
 	}
 
 	rate = table[index].frequency * 1000;
@@ -104,6 +110,7 @@ static int msm_cpufreq_target(struct cpufreq_policy *policy,
 	int ret = 0;
 	int index;
 	struct cpufreq_frequency_table *table;
+	int first_cpu = cpumask_first(policy->related_cpus);
 
 	mutex_lock(&per_cpu(suspend_data, policy->cpu).suspend_mutex);
 
@@ -124,11 +131,16 @@ static int msm_cpufreq_target(struct cpufreq_policy *policy,
 		ret = -ENODEV;
 		goto done;
 	}
-	if (cpufreq_frequency_table_target(policy, table, target_freq, relation,
-			&index)) {
-		pr_err("cpufreq: invalid target_freq: %d\n", target_freq);
-		ret = -EINVAL;
-		goto done;
+	if (per_cpu(cached_resolve_freq, first_cpu) == target_freq){
+		index = per_cpu(cached_resolve_idx, first_cpu);
+	}
+	else{
+		if (cpufreq_frequency_table_target(policy, table, target_freq, relation,
+				&index)) {
+			pr_err("cpufreq: invalid target_freq: %d\n", target_freq);
+			ret = -EINVAL;
+			goto done;
+		}
 	}
 
 	pr_debug("CPU[%d] target %d relation %d (%d-%d) selected %d\n",
@@ -146,10 +158,26 @@ static unsigned int msm_cpufreq_resolve_freq(struct cpufreq_policy *policy,
 					     unsigned int target_freq)
 {
 	int index;
+	int first_cpu = cpumask_first(policy->related_cpus);
+	unsigned int freq;
+	struct cpufreq_frequency_table *table;
 
-	index = cpufreq_frequency_table_target(policy, target_freq,
-					       CPUFREQ_RELATION_L);
-	return policy->freq_table[index].frequency;
+	table = cpufreq_frequency_get_table(policy->cpu);
+	if (!table) {
+		return target_freq;
+	}
+
+	if(cpufreq_frequency_table_target(policy, table, target_freq,
+					       CPUFREQ_RELATION_L, &index)){
+		return target_freq;
+	}
+
+	freq = table[index].frequency;
+
+	per_cpu(cached_resolve_idx, first_cpu) = index;
+	per_cpu(cached_resolve_freq, first_cpu) = freq;
+
+	return freq;
 }
 
 
@@ -517,6 +545,7 @@ static int __init msm_cpufreq_register(void)
 	for_each_possible_cpu(cpu) {
 		mutex_init(&(per_cpu(suspend_data, cpu).suspend_mutex));
 		per_cpu(suspend_data, cpu).device_suspended = 0;
+		per_cpu(cached_resolve_freq, cpu) = UINT_MAX;
 	}
 
 	rc = platform_driver_probe(&msm_cpufreq_plat_driver,
