@@ -67,6 +67,37 @@ static int set_cpu_freq(struct cpufreq_policy *policy, unsigned int new_freq,
 	return ret;
 }
 
+unsigned int msm_cpufreq_fast_switch(struct cpufreq_policy *policy,
+					unsigned int target_freq)
+{
+	int ret = 0;
+	int index;
+	struct cpufreq_frequency_table *table;
+
+	if (target_freq == policy->cur)
+		return 0;
+
+	if (per_cpu(suspend_data, policy->cpu).device_suspended) {
+		return 0;
+	}
+
+	table = cpufreq_frequency_get_table(policy->cpu);
+	if (!table) {
+		ret = -ENODEV;
+		return 0;
+	}
+	
+	if (cpufreq_frequency_table_target(policy, table, target_freq, CPUFREQ_RELATION_L,
+			&index)) {
+		return 0;
+	}
+
+	ret = set_cpu_freq(policy, table[index].frequency,
+			   table[index].driver_data);
+	
+	return table[index].frequency;
+}
+
 static int msm_cpufreq_target(struct cpufreq_policy *policy,
 				unsigned int target_freq,
 				unsigned int relation)
@@ -170,6 +201,7 @@ static int msm_cpufreq_init(struct cpufreq_policy *policy)
 	pr_debug("cpufreq: cpu%d init at %d switching to %d\n",
 			policy->cpu, cur_freq, table[index].frequency);
 	policy->cur = table[index].frequency;
+	policy->fast_switch_possible = true;
 
 	return 0;
 }
@@ -312,6 +344,7 @@ static struct cpufreq_driver msm_cpufreq_driver = {
 	.init		= msm_cpufreq_init,
 	.verify		= msm_cpufreq_verify,
 	.target		= msm_cpufreq_target,
+	.fast_switch	= msm_cpufreq_fast_switch,
 	.get		= msm_cpufreq_get_freq,
 	.name		= "msm",
 	.attr		= msm_freq_attr,
