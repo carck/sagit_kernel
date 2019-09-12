@@ -100,6 +100,8 @@ unsigned int msm_cpufreq_fast_switch(struct cpufreq_policy *policy,
 	rate = clk_round_rate(cpu_clk[policy->cpu], rate);
 	ret = clk_set_rate(cpu_clk[policy->cpu], rate);
 	
+	cpufreq_stats_record_transition(policy, rate);
+
 	return table[index].frequency;
 }
 

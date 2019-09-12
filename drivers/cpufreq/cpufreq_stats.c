@@ -15,8 +15,6 @@
 #include <linux/slab.h>
 #include <linux/cputime.h>
 
-static DEFINE_SPINLOCK(cpufreq_stats_lock);
-
 struct cpufreq_stats {
 	unsigned int total_trans;
 	unsigned long long last_time;
@@ -24,6 +22,7 @@ struct cpufreq_stats {
 	unsigned int state_num;
 	unsigned int last_index;
 	u64 *time_in_state;
+	spinlock_t lock;
 	unsigned int *freq_table;
 #ifdef CONFIG_CPU_FREQ_STAT_DETAILS
 	unsigned int *trans_table;
@@ -34,10 +33,10 @@ static int cpufreq_stats_update(struct cpufreq_stats *stats)
 {
 	unsigned long long cur_time = get_jiffies_64();
 
-	spin_lock(&cpufreq_stats_lock);
+	spin_lock(&stats->lock);
 	stats->time_in_state[stats->last_index] += cur_time - stats->last_time;
 	stats->last_time = cur_time;
-	spin_unlock(&cpufreq_stats_lock);
+	spin_unlock(&stats->lock);
 	return 0;
 }
 
@@ -203,6 +202,7 @@ void cpufreq_stats_create_table(struct cpufreq_policy *policy)
 	stats->state_num = i;
 	stats->last_time = get_jiffies_64();
 	stats->last_index = freq_table_get_index(stats, policy->cur);
+	spin_lock_init(&stats->lock);
 
 	policy->stats = stats;
 	ret = sysfs_create_group(&policy->kobj, &stats_attr_group);
