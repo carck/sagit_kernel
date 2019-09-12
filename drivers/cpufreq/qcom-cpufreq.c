@@ -72,10 +72,9 @@ unsigned int msm_cpufreq_fast_switch(struct cpufreq_policy *policy,
 {
 	int ret = 0;
 	int index;
+	unsigned long rate;
 	struct cpufreq_frequency_table *table;
 
-	if (target_freq == policy->cur)
-		return 0;
 
 	if (per_cpu(suspend_data, policy->cpu).device_suspended) {
 		return 0;
@@ -83,7 +82,6 @@ unsigned int msm_cpufreq_fast_switch(struct cpufreq_policy *policy,
 
 	table = cpufreq_frequency_get_table(policy->cpu);
 	if (!table) {
-		ret = -ENODEV;
 		return 0;
 	}
 	
@@ -92,8 +90,9 @@ unsigned int msm_cpufreq_fast_switch(struct cpufreq_policy *policy,
 		return 0;
 	}
 
-	ret = set_cpu_freq(policy, table[index].frequency,
-			   table[index].driver_data);
+	rate = table[index].frequency * 1000;
+	rate = clk_round_rate(cpu_clk[policy->cpu], rate);
+	ret = clk_set_rate(cpu_clk[policy->cpu], rate);
 	
 	return table[index].frequency;
 }
@@ -298,6 +297,8 @@ static int msm_cpufreq_resume(void)
 	for_each_online_cpu(cpu) {
 		ret = cpufreq_get_policy(&policy, cpu);
 		if (ret)
+			continue;
+		if(policy.fast_switch_enabled)
 			continue;
 		if (policy.cur <= policy.max && policy.cur >= policy.min)
 			continue;

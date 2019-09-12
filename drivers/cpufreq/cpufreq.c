@@ -613,7 +613,10 @@ unsigned int cpufreq_driver_resolve_freq(struct cpufreq_policy *policy,
 			return target_freq;
 		policy->cached_resolved_idx = idx;
 		return policy->freq_table[idx].frequency;
-        }
+    }
+
+    if (cpufreq_driver->resolve_freq)
+		return cpufreq_driver->resolve_freq(policy, target_freq);
 
 	return target_freq;
 }
