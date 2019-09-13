@@ -225,6 +225,14 @@ static inline void cpufreq_stats_record_index_transition(struct cpufreq_policy *
 				     unsigned int new_freq) {}
 #endif /* CONFIG_CPU_FREQ_STAT */
 
+#ifdef CONFIG_MSM_RUN_QUEUE_STATS
+void rqstats_record_transition(struct cpufreq_policy *policy,
+				     unsigned int new_freq);
+#else
+void rqstats_record_transition(struct cpufreq_policy *policy,
+				     unsigned int new_freq){ }
+#endif
+
 /*********************************************************************
  *                      CPUFREQ DRIVER INTERFACE                     *
  *********************************************************************/
