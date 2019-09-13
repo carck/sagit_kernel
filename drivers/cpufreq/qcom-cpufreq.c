@@ -103,7 +103,6 @@ unsigned int msm_cpufreq_fast_switch(struct cpufreq_policy *policy,
 	// cpufreq_stats_record_index_transition(policy, index);
 	// rqstats_record_transition(policy, rate);
 
-	policy->cur = rate;
 	return table[index].frequency;
 }
 
