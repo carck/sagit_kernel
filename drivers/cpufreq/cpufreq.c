@@ -595,14 +595,11 @@ unsigned int cpufreq_driver_resolve_freq(struct cpufreq_policy *policy,
 	policy->cached_target_freq = target_freq;
 
 	if (cpufreq_driver->target_index) {
-		int idx, rv;
+		int idx;
 
-		rv = cpufreq_frequency_table_target(policy, policy->freq_table,
+		idx = cpufreq_frequency_table_target(policy,
 						    target_freq,
-						    CPUFREQ_RELATION_L,
-						    &idx);
-		if (rv)
-			return target_freq;
+						    CPUFREQ_RELATION_L);
 		policy->cached_resolved_idx = idx;
 		return policy->freq_table[idx].frequency;
     }

@@ -89,13 +89,9 @@ unsigned int msm_cpufreq_fast_switch(struct cpufreq_policy *policy,
 	
 	if (per_cpu(cached_resolve_freq, first_cpu) == target_freq){
 		index = per_cpu(cached_resolve_idx, first_cpu);
-	} else{
-		if (cpufreq_frequency_table_target(policy, table, target_freq, CPUFREQ_RELATION_L,
-				&index)) {
-			return 0;
-		}
+	} else {
+		index = cpufreq_frequency_table_target(policy, target_freq, CPUFREQ_RELATION_L);
 	}
-
 	rate = table[index].frequency * 1000;
 	rate = clk_round_rate(cpu_clk[policy->cpu], rate);
 	ret = clk_set_rate(cpu_clk[policy->cpu], rate);
@@ -138,12 +134,7 @@ static int msm_cpufreq_target(struct cpufreq_policy *policy,
 		index = per_cpu(cached_resolve_idx, first_cpu);
 	}
 	else{
-		if (cpufreq_frequency_table_target(policy, table, target_freq, relation,
-				&index)) {
-			pr_err("cpufreq: invalid target_freq: %d\n", target_freq);
-			ret = -EINVAL;
-			goto done;
-		}
+		index = cpufreq_frequency_table_target(policy, target_freq, relation);
 	}
 
 	pr_debug("CPU[%d] target %d relation %d (%d-%d) selected %d\n",
@@ -170,10 +161,7 @@ static unsigned int msm_cpufreq_resolve_freq(struct cpufreq_policy *policy,
 		return target_freq;
 	}
 
-	if(cpufreq_frequency_table_target(policy, table, target_freq,
-					       CPUFREQ_RELATION_L, &index)){
-		return target_freq;
-	}
+	index = cpufreq_frequency_table_target(policy, target_freq, CPUFREQ_RELATION_L);
 
 	freq = table[index].frequency;
 
@@ -224,14 +212,6 @@ static int msm_cpufreq_init(struct cpufreq_policy *policy)
 
 	cur_freq = clk_get_rate(cpu_clk[policy->cpu])/1000;
 
-	if (cpufreq_frequency_table_target(policy, table, cur_freq,
-	    CPUFREQ_RELATION_H, &index) &&
-	    cpufreq_frequency_table_target(policy, table, cur_freq,
-	    CPUFREQ_RELATION_L, &index)) {
-		pr_info("cpufreq: cpu%d at invalid freq: %d\n",
-				policy->cpu, cur_freq);
-		return -EINVAL;
-	}
 	/*
 	 * Call set_cpu_freq unconditionally so that when cpu is set to
 	 * online, frequency limit will always be updated.
