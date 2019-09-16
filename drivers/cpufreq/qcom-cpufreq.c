@@ -321,8 +321,6 @@ static int msm_cpufreq_resume(void)
 		ret = cpufreq_get_policy(&policy, cpu);
 		if (ret)
 			continue;
-		if(policy.fast_switch_enabled)
-			continue;
 		if (policy.cur <= policy.max && policy.cur >= policy.min)
 			continue;
 		ret = cpufreq_update_policy(cpu);
