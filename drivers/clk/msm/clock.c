@@ -724,6 +724,36 @@ err_vote_vdd:
 }
 EXPORT_SYMBOL(clk_set_rate);
 
+int clk_set_rate_nolock(struct clk *clk, unsigned long rate)
+{
+	int rc = 0;
+	const char *name;
+
+	if (IS_ERR_OR_NULL(clk))
+		return -EINVAL;
+	name = clk->dbg_name;
+
+	if (!is_rate_valid(clk, rate))
+		return -EINVAL;
+
+	/* Return early if the rate isn't going to change */
+	if (clk->rate == rate && !(clk->flags & CLKFLAG_NO_RATE_CACHE))
+		goto out;
+
+	trace_clock_set_rate(name, rate, raw_smp_processor_id());
+
+	rc = clk->ops->set_rate(clk, rate);
+	if (rc)
+		goto out;
+	clk->rate = rate;
+
+	trace_clock_set_rate_complete(name, clk->rate, raw_smp_processor_id());
+
+out:
+	return rc;
+}
+EXPORT_SYMBOL(clk_set_rate_nolock);
+
 long clk_round_rate(struct clk *clk, unsigned long rate)
 {
 	long rrate;

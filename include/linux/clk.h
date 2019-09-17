@@ -334,6 +334,15 @@ long clk_round_rate(struct clk *clk, unsigned long rate);
 int clk_set_rate(struct clk *clk, unsigned long rate);
 
 /**
+ * clk_set_rate_nolock - set the clock rate for a clock source
+ * @clk: clock source
+ * @rate: desired clock rate in Hz
+ *
+ * Returns success (0) or negative errno.
+ */
+int clk_set_rate_nolock(struct clk *clk, unsigned long rate);
+
+/**
  * clk_has_parent - check if a clock is a possible parent for another
  * @clk: clock source
  * @parent: parent clock source
