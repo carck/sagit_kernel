@@ -75,15 +75,10 @@ unsigned int msm_cpufreq_fast_switch(struct cpufreq_policy *policy,
 	int ret = 0;
 	int index;
 	unsigned long rate;
-	struct cpufreq_frequency_table *table;
+	struct cpufreq_frequency_table *table = policy->freq_table;
 	int first_cpu = cpumask_first(policy->related_cpus);
 
 	if (per_cpu(suspend_data, policy->cpu).device_suspended) {
-		return 0;
-	}
-
-	table = policy->freq_table;
-	if (!table) {
 		return 0;
 	}
 	
