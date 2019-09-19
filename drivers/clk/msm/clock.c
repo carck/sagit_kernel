@@ -727,14 +727,7 @@ EXPORT_SYMBOL(clk_set_rate);
 int clk_set_rate_nolock(struct clk *clk, unsigned long rate)
 {
 	int rc = 0;
-	const char *name;
-
-	if (IS_ERR_OR_NULL(clk))
-		return -EINVAL;
-	name = clk->dbg_name;
-
-	if (!is_rate_valid(clk, rate))
-		return -EINVAL;
+	const char *name = clk->dbg_name;
 
 	/* Return early if the rate isn't going to change */
 	if (clk->rate == rate && !(clk->flags & CLKFLAG_NO_RATE_CACHE))
