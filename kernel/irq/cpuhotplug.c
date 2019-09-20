@@ -97,19 +97,14 @@ void irq_migrate_all_off_this_cpu(void)
 	local_irq_save(flags);
 
 	for_each_active_irq(irq) {
-		bool affinity_broken;
 
 		desc = irq_to_desc(irq);
 		if (!desc)
 			continue;
 
 		raw_spin_lock(&desc->lock);
-		affinity_broken = migrate_one_irq(desc);
+		migrate_one_irq(desc);
 		raw_spin_unlock(&desc->lock);
-
-		if (affinity_broken)
-			pr_warn_ratelimited("IRQ%u no longer affine to CPU%u\n",
-					    irq, smp_processor_id());
 	}
 
 	local_irq_restore(flags);
