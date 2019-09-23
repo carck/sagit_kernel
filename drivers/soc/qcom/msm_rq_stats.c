@@ -145,10 +145,8 @@ void rqstats_record_transition(struct cpufreq_policy *policy,
 
 	for_each_cpu(j, policy->cpus) {
 		struct cpu_load_data *pcpu = &per_cpu(cpuload, j);
-		spin_lock(&pcpu->lock);
 		update_average_load(policy->cur, j);
 		pcpu->cur_freq = new_freq;
-		spin_unlock(&pcpu->lock);
 	}
 }
 
