@@ -84,7 +84,7 @@ unsigned int msm_cpufreq_fast_switch(struct cpufreq_policy *policy,
 		index = cpufreq_frequency_table_target(policy, target_freq, CPUFREQ_RELATION_L);
 	}
 	rate = table[index].frequency * 1000;
-	ret = clk_set_rate_nolock(cpu_clk[policy->cpu], rate);
+	ret = clk_set_rate_nolock(cpu_clk[policy->cpu], rate, index);
 	
 	cpufreq_stats_record_index_transition(policy, index);
 	rqstats_record_transition(policy, rate);

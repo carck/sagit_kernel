@@ -724,7 +724,7 @@ err_vote_vdd:
 }
 EXPORT_SYMBOL(clk_set_rate);
 
-int clk_set_rate_nolock(struct clk *clk, unsigned long rate)
+int clk_set_rate_nolock(struct clk *clk, unsigned long rate, int index)
 {
 	int rc = 0;
 	const char *name = clk->dbg_name;
@@ -735,7 +735,7 @@ int clk_set_rate_nolock(struct clk *clk, unsigned long rate)
 
 	trace_clock_set_rate(name, rate, raw_smp_processor_id());
 
-	rc = clk->ops->set_rate(clk, rate);
+	rc = clk->ops->set_index(clk, index, rate);
 	if (rc)
 		goto out;
 	clk->rate = rate;

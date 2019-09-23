@@ -730,12 +730,12 @@ static long clk_osm_round_rate(struct clk *c, unsigned long rate)
 	return rrate;
 }
 
-static int clk_osm_search_table(struct osm_entry *table, int entries, long rate)
+static int clk_osm_search_table(struct osm_entry *table, int entries, long rate, int startIndex)
 {
 	int quad_core_index, single_core_index = 0;
 	int core_count;
 
-	for (quad_core_index = 0; quad_core_index < entries;
+	for (quad_core_index = startIndex; quad_core_index < entries;
 	     quad_core_index++) {
 		core_count =
 			CORE_COUNT_VAL(table[quad_core_index].freq_data);
@@ -754,6 +754,30 @@ static int clk_osm_search_table(struct osm_entry *table, int entries, long rate)
 	return -EINVAL;
 }
 
+static int clk_osm_set_index(struct clk *c, int index, unsigned long rate)
+{
+	struct clk_osm *cpuclk = to_clk_osm(c);
+	int r_index = 0;
+
+	/* Convert rate to table index */
+	r_index = clk_osm_search_table(cpuclk->osm_table,
+				     cpuclk->num_entries, rate, index);
+	if (r_index < 0) {
+		pr_err("cannot set cluster %u to %lu\n",
+		       cpuclk->cluster_num, rate);
+		return -EINVAL;
+	}
+	pr_debug("rate: %lu --> index %d\n", rate, r_index);
+
+	/* Choose index and send request to OSM hardware */
+	clk_osm_write_reg(cpuclk, r_index, DCVS_PERF_STATE_DESIRED_REG);
+
+	/* Make sure the write goes through before proceeding */
+	clk_osm_mb(cpuclk, OSM_BASE);
+
+	return 0;
+}
+
 static int clk_osm_set_rate(struct clk *c, unsigned long rate)
 {
 	struct clk_osm *cpuclk = to_clk_osm(c);
@@ -769,7 +793,7 @@ static int clk_osm_set_rate(struct clk *c, unsigned long rate)
 
 	/* Convert rate to table index */
 	index = clk_osm_search_table(cpuclk->osm_table,
-				     cpuclk->num_entries, r_rate);
+				     cpuclk->num_entries, r_rate, 0);
 	if (index < 0) {
 		pr_err("cannot set cluster %u to %lu\n",
 		       cpuclk->cluster_num, rate);
@@ -817,6 +841,7 @@ static int clk_osm_enable(struct clk *c)
 static struct clk_ops clk_ops_cpu_osm = {
 	.enable = clk_osm_enable,
 	.set_rate = clk_osm_set_rate,
+	.set_index = clk_osm_set_index,
 	.round_rate = clk_osm_round_rate,
 	.list_rate = clk_osm_list_rate,
 	.handoff = clk_osm_handoff,
