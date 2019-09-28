@@ -84,7 +84,7 @@ unsigned int msm_cpufreq_fast_switch(struct cpufreq_policy *policy,
 		index = cpufreq_frequency_table_target(policy, target_freq, CPUFREQ_RELATION_L);
 	}
 	rate = table[index].frequency * 1000;
-	ret = clk_set_rate_nolock(cpu_clk[policy->cpu], rate, index);
+	ret = clk_set_index(cpu_clk[policy->cpu], table[index].driver_data);
 	
 	cpufreq_stats_record_index_transition(policy, index);
 	rqstats_record_transition(policy, rate);
@@ -98,7 +98,7 @@ static int msm_cpufreq_target(struct cpufreq_policy *policy,
 {
 	int ret = 0;
 	int index;
-	struct cpufreq_frequency_table *table;
+	struct cpufreq_frequency_table *table = policy->freq_table;
 	int first_cpu = cpumask_first(policy->related_cpus);
 
 	mutex_lock(&per_cpu(suspend_data, policy->cpu).suspend_mutex);
@@ -113,13 +113,6 @@ static int msm_cpufreq_target(struct cpufreq_policy *policy,
 		goto done;
 	}
 
-	table = policy->freq_table;
-	if (!table) {
-		pr_err("cpufreq: Failed to get frequency table for CPU%u\n",
-		       policy->cpu);
-		ret = -ENODEV;
-		goto done;
-	}
 	if (per_cpu(cached_resolve_freq, first_cpu) == target_freq){
 		index = per_cpu(cached_resolve_idx, first_cpu);
 	}
@@ -144,12 +137,7 @@ static unsigned int msm_cpufreq_resolve_freq(struct cpufreq_policy *policy,
 	int index;
 	int first_cpu = cpumask_first(policy->related_cpus);
 	unsigned int freq;
-	struct cpufreq_frequency_table *table;
-
-	table = policy->freq_table;
-	if (!table) {
-		return target_freq;
-	}
+	struct cpufreq_frequency_table *table = policy->freq_table;
 
 	index = cpufreq_frequency_table_target(policy, target_freq, CPUFREQ_RELATION_L);
 
@@ -366,7 +354,7 @@ static struct cpufreq_driver msm_cpufreq_driver = {
 static struct cpufreq_frequency_table *cpufreq_parse_dt(struct device *dev,
 						char *tbl_name, int cpu)
 {
-	int ret, nf, i, j;
+	int ret, nf, i, j, index;
 	u32 *data;
 	struct cpufreq_frequency_table *ftbl;
 
@@ -397,6 +385,12 @@ static struct cpufreq_frequency_table *cpufreq_parse_dt(struct device *dev,
 		f = clk_round_rate(cpu_clk[cpu], data[i] * 1000);
 		if (IS_ERR_VALUE(f))
 			break;
+		
+		index = clk_resolve_index(cpu_clk[cpu], f);
+		if(index == -EINVAL) {
+			pr_err("%s: fail to resolve index %ld %d",__func__, f, index);
+		}
+
 		f /= 1000;
 
 		/*
@@ -407,7 +401,7 @@ static struct cpufreq_frequency_table *cpufreq_parse_dt(struct device *dev,
 		if (j > 0 && f <= ftbl[j - 1].frequency)
 			continue;
 
-		ftbl[j].driver_data = j;
+		ftbl[j].driver_data = index;
 		ftbl[j].frequency = f;
 		j++;
 	}

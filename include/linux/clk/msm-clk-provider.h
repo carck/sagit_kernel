@@ -144,7 +144,7 @@ struct clk_ops {
 	int (*reset)(struct clk *clk, enum clk_reset_action action);
 	int (*pre_set_rate)(struct clk *clk, unsigned long new_rate);
 	int (*set_rate)(struct clk *clk, unsigned long rate);
-	int (*set_index)(struct clk *clk, int index, unsigned long rate);
+	int (*set_index)(struct clk *clk, int index);
 	void (*post_set_rate)(struct clk *clk, unsigned long old_rate);
 	int (*set_max_rate)(struct clk *clk, unsigned long rate);
 	int (*set_flags)(struct clk *clk, unsigned flags);
@@ -152,6 +152,7 @@ struct clk_ops {
 	long (*list_rate)(struct clk *clk, unsigned n);
 	int (*is_enabled)(struct clk *clk);
 	long (*round_rate)(struct clk *clk, unsigned long rate);
+	int (*resolve_index)(struct clk *clk, unsigned long rate);
 	int (*set_parent)(struct clk *clk, struct clk *parent);
 	struct clk *(*get_parent)(struct clk *clk);
 	bool (*is_local)(struct clk *clk);
