@@ -42,8 +42,6 @@ struct cpufreq_suspend_t {
 };
 
 static DEFINE_PER_CPU(struct cpufreq_suspend_t, suspend_data);
-static DEFINE_PER_CPU(int, cached_resolve_idx);
-static DEFINE_PER_CPU(unsigned int, cached_resolve_freq);
 
 static int set_cpu_freq(struct cpufreq_policy *policy, unsigned int new_freq,
 			unsigned int index)
@@ -76,10 +74,9 @@ unsigned int msm_cpufreq_fast_switch(struct cpufreq_policy *policy,
 	int index;
 	unsigned long rate;
 	struct cpufreq_frequency_table *table = policy->freq_table;
-	int first_cpu = cpumask_first(policy->related_cpus);
 	
-	if (per_cpu(cached_resolve_freq, first_cpu) == target_freq){
-		index = per_cpu(cached_resolve_idx, first_cpu);
+	if (policy->cached_target_freq == target_freq){
+		index = policy->cached_resolved_idx;
 	} else {
 		index = cpufreq_frequency_table_target(policy, target_freq, CPUFREQ_RELATION_L);
 	}
@@ -99,7 +96,6 @@ static int msm_cpufreq_target(struct cpufreq_policy *policy,
 	int ret = 0;
 	int index;
 	struct cpufreq_frequency_table *table = policy->freq_table;
-	int first_cpu = cpumask_first(policy->related_cpus);
 
 	mutex_lock(&per_cpu(suspend_data, policy->cpu).suspend_mutex);
 
@@ -113,8 +109,8 @@ static int msm_cpufreq_target(struct cpufreq_policy *policy,
 		goto done;
 	}
 
-	if (per_cpu(cached_resolve_freq, first_cpu) == target_freq){
-		index = per_cpu(cached_resolve_idx, first_cpu);
+	if (policy->cached_target_freq == target_freq){
+		index = policy->cached_resolved_idx;
 	}
 	else{
 		index = cpufreq_frequency_table_target(policy, target_freq, relation);
@@ -135,7 +131,6 @@ static unsigned int msm_cpufreq_resolve_freq(struct cpufreq_policy *policy,
 					     unsigned int target_freq)
 {
 	int index;
-	int first_cpu = cpumask_first(policy->related_cpus);
 	unsigned int freq;
 	struct cpufreq_frequency_table *table = policy->freq_table;
 
@@ -143,8 +138,8 @@ static unsigned int msm_cpufreq_resolve_freq(struct cpufreq_policy *policy,
 
 	freq = table[index].frequency;
 
-	per_cpu(cached_resolve_idx, first_cpu) = index;
-	per_cpu(cached_resolve_freq, first_cpu) = freq;
+	policy->cached_resolved_idx = index;
+	policy->cached_target_freq = freq;
 
 	return freq;
 }
@@ -510,7 +505,6 @@ static int __init msm_cpufreq_register(void)
 	for_each_possible_cpu(cpu) {
 		mutex_init(&(per_cpu(suspend_data, cpu).suspend_mutex));
 		per_cpu(suspend_data, cpu).device_suspended = 0;
-		per_cpu(cached_resolve_freq, cpu) = UINT_MAX;
 	}
 
 	rc = platform_driver_probe(&msm_cpufreq_plat_driver,
