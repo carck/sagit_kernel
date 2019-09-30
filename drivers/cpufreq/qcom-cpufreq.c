@@ -72,7 +72,7 @@ unsigned int msm_cpufreq_fast_switch(struct cpufreq_policy *policy,
 {
 	int ret = 0;
 	int index;
-	unsigned long rate;
+	unsigned int new_freq;
 	struct cpufreq_frequency_table *table = policy->freq_table;
 	
 	if (policy->cached_target_freq == target_freq){
@@ -80,13 +80,13 @@ unsigned int msm_cpufreq_fast_switch(struct cpufreq_policy *policy,
 	} else {
 		index = cpufreq_frequency_table_target(policy, target_freq, CPUFREQ_RELATION_L);
 	}
-	rate = table[index].frequency * 1000;
+	new_freq = table[index].frequency;
 	ret = clk_set_index(cpu_clk[policy->cpu], table[index].driver_data);
 	
 	cpufreq_stats_record_index_transition(policy, index);
-	rqstats_record_transition(policy, rate);
+	rqstats_record_transition(policy, new_freq);
 
-	return table[index].frequency;
+	return new_freq;
 }
 
 static int msm_cpufreq_target(struct cpufreq_policy *policy,
