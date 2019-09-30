@@ -40,13 +40,6 @@ static int cpufreq_stats_update(struct cpufreq_stats *stats)
 	return 0;
 }
 
-static void cpufreq_stats_update_nolock(struct cpufreq_stats *stats)
-{
-	unsigned long long cur_time = get_jiffies_64();
-	stats->time_in_state[stats->last_index] += cur_time - stats->last_time;
-	stats->last_time = cur_time;
-}
-
 static ssize_t show_total_trans(struct cpufreq_policy *policy, char *buf)
 {
 	return sprintf(buf, "%d\n", policy->stats->total_trans);
@@ -254,7 +247,7 @@ void cpufreq_stats_record_index_transition(struct cpufreq_policy *policy,
 	if (stats->last_index == new_index)
 		return;
 
-	cpufreq_stats_update_nolock(stats);
+	cpufreq_stats_update(stats);
 
 	stats->last_index = new_index;
 	stats->total_trans++;

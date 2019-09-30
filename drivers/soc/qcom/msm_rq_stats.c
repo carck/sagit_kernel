@@ -46,8 +46,7 @@ struct cpu_load_data {
 	unsigned int cur_freq;
 	unsigned int policy_max;
 	cpumask_var_t related_cpus;
-	struct mutex cpu_load_mutex;
-	spinlock_t lock;
+	spinlock_t cpu_load_lock;
 };
 
 static DEFINE_PER_CPU(struct cpu_load_data, cpuload);
@@ -107,11 +106,11 @@ static unsigned int report_load_at_max_freq(void)
 
 	for_each_online_cpu(cpu) {
 		pcpu = &per_cpu(cpuload, cpu);
-		mutex_lock(&pcpu->cpu_load_mutex);
+		spin_lock(&pcpu->cpu_load_lock);
 		update_average_load(pcpu->cur_freq, cpu);
 		total_load += pcpu->avg_load_maxfreq;
 		pcpu->avg_load_maxfreq = 0;
-		mutex_unlock(&pcpu->cpu_load_mutex);
+		spin_unlock(&pcpu->cpu_load_lock);
 	}
 	return total_load;
 }
@@ -128,10 +127,10 @@ static int cpufreq_transition_handler(struct notifier_block *nb,
 		for_each_cpu(j, this_cpu->related_cpus) {
 			struct cpu_load_data *pcpu = &per_cpu(cpuload, j);
 
-			mutex_lock(&pcpu->cpu_load_mutex);
+			spin_lock(&pcpu->cpu_load_lock);
 			update_average_load(freqs->old, j);
 			pcpu->cur_freq = freqs->new;
-			mutex_unlock(&pcpu->cpu_load_mutex);
+			spin_unlock(&pcpu->cpu_load_lock);
 		}
 		break;
 	}
@@ -145,8 +144,10 @@ void rqstats_record_transition(struct cpufreq_policy *policy,
 
 	for_each_cpu(j, policy->cpus) {
 		struct cpu_load_data *pcpu = &per_cpu(cpuload, j);
+		spin_lock(&pcpu->cpu_load_lock);
 		update_average_load(policy->cur, j);
 		pcpu->cur_freq = new_freq;
+		spin_unlock(&pcpu->cpu_load_lock);
 	}
 }
 
@@ -378,8 +379,7 @@ static int __init msm_rq_stats_init(void)
 	for_each_possible_cpu(i) {
 		struct cpu_load_data *pcpu = &per_cpu(cpuload, i);
 
-		mutex_init(&pcpu->cpu_load_mutex);
-		spin_lock_init(&pcpu->lock);
+		spin_lock_init(&pcpu->cpu_load_lock);
 		cpufreq_get_policy(&cpu_policy, i);
 		pcpu->policy_max = cpu_policy.cpuinfo.max_freq;
 		if (cpu_online(i))
