@@ -34,154 +34,6 @@
 #define DEFAULT_RQ_POLL_JIFFIES 1
 #define DEFAULT_DEF_TIMER_JIFFIES 5
 
-struct notifier_block freq_transition;
-struct notifier_block cpu_hotplug;
-
-struct cpu_load_data {
-	cputime64_t prev_cpu_idle;
-	cputime64_t prev_cpu_wall;
-	unsigned int avg_load_maxfreq;
-	unsigned int samples;
-	unsigned int window_size;
-	unsigned int cur_freq;
-	unsigned int policy_max;
-	cpumask_var_t related_cpus;
-	spinlock_t cpu_load_lock;
-};
-
-static DEFINE_PER_CPU(struct cpu_load_data, cpuload);
-
-
-static int update_average_load(unsigned int freq, unsigned int cpu)
-{
-
-	struct cpu_load_data *pcpu = &per_cpu(cpuload, cpu);
-	cputime64_t cur_wall_time, cur_idle_time;
-	unsigned int idle_time, wall_time;
-	unsigned int cur_load, load_at_max_freq;
-
-	cur_idle_time = get_cpu_idle_time(cpu, &cur_wall_time, 0);
-
-	wall_time = (unsigned int) (cur_wall_time - pcpu->prev_cpu_wall);
-	pcpu->prev_cpu_wall = cur_wall_time;
-
-	idle_time = (unsigned int) (cur_idle_time - pcpu->prev_cpu_idle);
-	pcpu->prev_cpu_idle = cur_idle_time;
-
-
-	if (unlikely(wall_time <= 0 || wall_time < idle_time))
-		return 0;
-
-	cur_load = 100 * (wall_time - idle_time) / wall_time;
-
-	/* Calculate the scaled load across CPU */
-	load_at_max_freq = (cur_load * freq) / pcpu->policy_max;
-
-	if (!pcpu->avg_load_maxfreq) {
-		/* This is the first sample in this window*/
-		pcpu->avg_load_maxfreq = load_at_max_freq;
-		pcpu->window_size = wall_time;
-	} else {
-		/*
-		 * The is already a sample available in this window.
-		 * Compute weighted average with prev entry, so that we get
-		 * the precise weighted load.
-		 */
-		pcpu->avg_load_maxfreq =
-			((pcpu->avg_load_maxfreq * pcpu->window_size) +
-			(load_at_max_freq * wall_time)) /
-			(wall_time + pcpu->window_size);
-
-		pcpu->window_size += wall_time;
-	}
-
-	return 0;
-}
-
-static unsigned int report_load_at_max_freq(void)
-{
-	int cpu;
-	struct cpu_load_data *pcpu;
-	unsigned int total_load = 0;
-
-	for_each_online_cpu(cpu) {
-		pcpu = &per_cpu(cpuload, cpu);
-		spin_lock(&pcpu->cpu_load_lock);
-		update_average_load(pcpu->cur_freq, cpu);
-		total_load += pcpu->avg_load_maxfreq;
-		pcpu->avg_load_maxfreq = 0;
-		spin_unlock(&pcpu->cpu_load_lock);
-	}
-	return total_load;
-}
-
-static int cpufreq_transition_handler(struct notifier_block *nb,
-			unsigned long val, void *data)
-{
-	struct cpufreq_freqs *freqs = data;
-	struct cpu_load_data *this_cpu = &per_cpu(cpuload, freqs->cpu);
-	int j;
-
-	switch (val) {
-	case CPUFREQ_POSTCHANGE:
-		for_each_cpu(j, this_cpu->related_cpus) {
-			struct cpu_load_data *pcpu = &per_cpu(cpuload, j);
-
-			spin_lock(&pcpu->cpu_load_lock);
-			update_average_load(freqs->old, j);
-			pcpu->cur_freq = freqs->new;
-			spin_unlock(&pcpu->cpu_load_lock);
-		}
-		break;
-	}
-	return 0;
-}
-
-void rqstats_record_transition(struct cpufreq_policy *policy,
-				     unsigned int new_freq)
-{
-	int j;
-
-	for_each_cpu(j, policy->cpus) {
-		struct cpu_load_data *pcpu = &per_cpu(cpuload, j);
-		spin_lock(&pcpu->cpu_load_lock);
-		update_average_load(policy->cur, j);
-		pcpu->cur_freq = new_freq;
-		spin_unlock(&pcpu->cpu_load_lock);
-	}
-}
-
-static void update_related_cpus(void)
-{
-	unsigned cpu;
-
-	for_each_cpu(cpu, cpu_online_mask) {
-		struct cpu_load_data *this_cpu = &per_cpu(cpuload, cpu);
-		struct cpufreq_policy cpu_policy;
-
-		cpufreq_get_policy(&cpu_policy, cpu);
-		cpumask_copy(this_cpu->related_cpus, cpu_policy.cpus);
-	}
-}
-static int cpu_hotplug_handler(struct notifier_block *nb,
-			unsigned long val, void *data)
-{
-	unsigned int cpu = (unsigned long)data;
-	struct cpu_load_data *this_cpu = &per_cpu(cpuload, cpu);
-
-	switch (val) {
-	case CPU_ONLINE:
-		if (!this_cpu->cur_freq)
-			this_cpu->cur_freq = cpufreq_quick_get(cpu);
-		update_related_cpus();
-		/* fall through */
-	case CPU_ONLINE_FROZEN:
-		this_cpu->avg_load_maxfreq = 0;
-	}
-
-	return NOTIFY_OK;
-}
-
 static int system_suspend_handler(struct notifier_block *nb,
 				unsigned long val, void *data)
 {
@@ -309,7 +161,8 @@ static struct kobj_attribute def_timer_ms_attr =
 static ssize_t show_cpu_normalized_load(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)
 {
-	return snprintf(buf, MAX_LONG_SIZE, "%u\n", report_load_at_max_freq());
+	pr_err("RQ %s\n", current->comm);
+	return snprintf(buf, MAX_LONG_SIZE, "%u\n", 0);
 }
 
 static struct kobj_attribute cpu_normalized_load_attr =
@@ -354,8 +207,6 @@ static int init_rq_attribs(void)
 static int __init msm_rq_stats_init(void)
 {
 	int ret;
-	int i;
-	struct cpufreq_policy cpu_policy;
 
 #ifndef CONFIG_SMP
 	/* Bail out if this is not an SMP Target */
@@ -375,22 +226,6 @@ static int __init msm_rq_stats_init(void)
 	ret = init_rq_attribs();
 
 	rq_info.init = 1;
-
-	for_each_possible_cpu(i) {
-		struct cpu_load_data *pcpu = &per_cpu(cpuload, i);
-
-		spin_lock_init(&pcpu->cpu_load_lock);
-		cpufreq_get_policy(&cpu_policy, i);
-		pcpu->policy_max = cpu_policy.cpuinfo.max_freq;
-		if (cpu_online(i))
-			pcpu->cur_freq = cpufreq_quick_get(i);
-		cpumask_copy(pcpu->related_cpus, cpu_policy.cpus);
-	}
-	freq_transition.notifier_call = cpufreq_transition_handler;
-	cpu_hotplug.notifier_call = cpu_hotplug_handler;
-	cpufreq_register_notifier(&freq_transition,
-					CPUFREQ_TRANSITION_NOTIFIER);
-	register_hotcpu_notifier(&cpu_hotplug);
 
 	return ret;
 }

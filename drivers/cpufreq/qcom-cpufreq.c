@@ -84,7 +84,6 @@ unsigned int msm_cpufreq_fast_switch(struct cpufreq_policy *policy,
 	ret = clk_set_index(cpu_clk[policy->cpu], table[index].driver_data);
 	
 	cpufreq_stats_record_index_transition(policy, index);
-	rqstats_record_transition(policy, new_freq);
 
 	return new_freq;
 }
