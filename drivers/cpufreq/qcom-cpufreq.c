@@ -76,6 +76,9 @@ unsigned int msm_cpufreq_fast_switch(struct cpufreq_policy *policy,
 	struct clk *c = cpu_clk[policy->cpu];
 	struct cpufreq_frequency_table *table = policy->freq_table;
 	
+	if (target_freq == policy->cur)
+		return 0;
+
 	if (policy->cached_target_freq == target_freq) {
 		index = policy->cached_resolved_idx;
 	} else {
