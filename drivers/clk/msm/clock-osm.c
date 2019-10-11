@@ -771,8 +771,6 @@ static int clk_osm_set_index(struct clk *c, int index)
 	/* Make sure the write goes through before proceeding */
 	clk_osm_mb(cpuclk, OSM_BASE);
 
-	c->rate = cpuclk->osm_table[index].frequency;
-
 	return 0;
 }
 

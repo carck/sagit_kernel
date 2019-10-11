@@ -24,6 +24,7 @@
 #include <linux/cpumask.h>
 #include <linux/suspend.h>
 #include <linux/clk.h>
+#include <linux/clk/msm-clk-provider.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
@@ -70,19 +71,22 @@ static int set_cpu_freq(struct cpufreq_policy *policy, unsigned int new_freq,
 unsigned int msm_cpufreq_fast_switch(struct cpufreq_policy *policy,
 					unsigned int target_freq)
 {
-	int ret = 0;
 	int index;
 	unsigned int new_freq;
+	struct clk *c = cpu_clk[policy->cpu];
 	struct cpufreq_frequency_table *table = policy->freq_table;
 	
-	if (policy->cached_target_freq == target_freq){
+	if (policy->cached_target_freq == target_freq) {
 		index = policy->cached_resolved_idx;
 	} else {
 		index = cpufreq_frequency_table_target(policy, target_freq, CPUFREQ_RELATION_L);
 	}
 	new_freq = table[index].frequency;
-	ret = clk_set_index(cpu_clk[policy->cpu], table[index].driver_data);
 	
+	clk_set_index(c, table[index].driver_data);
+	
+	c->rate = new_freq * 1000;
+
 	cpufreq_stats_record_index_transition(policy, index);
 
 	return new_freq;
