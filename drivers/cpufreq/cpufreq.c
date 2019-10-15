@@ -1954,6 +1954,7 @@ int cpufreq_register_notifier(struct notifier_block *nb, unsigned int list)
 		mutex_lock(&cpufreq_fast_switch_lock);
 
 		if (cpufreq_fast_switch_count > 0) {
+			pr_warn("skip notifier");
 			mutex_unlock(&cpufreq_fast_switch_lock);
 			return -EBUSY;
 		}
