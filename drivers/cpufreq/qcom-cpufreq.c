@@ -86,6 +86,8 @@ unsigned int msm_cpufreq_fast_switch(struct cpufreq_policy *policy,
 	}
 	new_freq = table[index].frequency;
 	
+	scale_freq_capacity(policy->cpus, new_freq, policy->cpuinfo.max_freq);
+
 	clk_set_index(c, table[index].driver_data);
 	
 	c->rate = new_freq * 1000;

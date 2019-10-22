@@ -368,7 +368,7 @@ static DEFINE_PER_CPU(unsigned long, max_freq_cpu);
 static DEFINE_PER_CPU(unsigned long, max_freq_scale) = SCHED_CAPACITY_SCALE;
 static DEFINE_PER_CPU(unsigned long, min_freq_scale);
 
-static void
+void
 scale_freq_capacity(const cpumask_t *cpus, unsigned long cur_freq,
 		    unsigned long max_freq)
 {
