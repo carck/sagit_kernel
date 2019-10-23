@@ -149,16 +149,10 @@ static void input_boost_worker(struct work_struct *work)
 		do_stune_boost(20);
 	}
 #endif
-	if (!cancel_delayed_work_sync(&b->input_unboost)) {
-		set_boost_bit(b, INPUT_BOOST);
-		update_online_cpu_policy();
-	}
 #ifdef CONFIG_DYNAMIC_STUNE_BOOST	
 	queue_delayed_work(b->wq, &b->stune_unboost,
 		msecs_to_jiffies(CONFIG_WAKE_BOOST_DURATION_MS * 5));
 #endif
-	queue_delayed_work(b->wq, &b->input_unboost,
-		msecs_to_jiffies(input_boost_duration));
 }
 
 static void input_unboost_worker(struct work_struct *work)
