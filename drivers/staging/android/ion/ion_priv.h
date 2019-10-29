@@ -42,7 +42,6 @@ struct ion_buffer *ion_handle_buffer(struct ion_handle *handle);
 /**
  * struct ion_buffer - metadata for a particular buffer
  * @ref:		reference count
- * @node:		node in the ion_device buffers tree
  * @dev:		back pointer to the ion_device
  * @heap:		back pointer to the heap the buffer came from
  * @flags:		buffer specific flags
@@ -71,10 +70,7 @@ struct ion_buffer *ion_handle_buffer(struct ion_handle *handle);
 */
 struct ion_buffer {
 	struct kref ref;
-	union {
-		struct rb_node node;
-		struct list_head list;
-	};
+	struct list_head list;
 	struct ion_device *dev;
 	struct ion_heap *heap;
 	unsigned long flags;

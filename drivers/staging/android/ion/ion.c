@@ -58,8 +58,6 @@
  */
 struct ion_device {
 	struct miscdevice dev;
-	struct rb_root buffers;
-	struct mutex buffer_lock;
 	struct rw_semaphore lock;
 	struct plist_head heaps;
 	long (*custom_ioctl)(struct ion_client *client, unsigned int cmd,
@@ -154,32 +152,6 @@ static inline void ion_buffer_page_clean(struct page **page)
 }
 
 /* this function should only be called while dev->lock is held */
-static void ion_buffer_add(struct ion_device *dev,
-			   struct ion_buffer *buffer)
-{
-	struct rb_node **p = &dev->buffers.rb_node;
-	struct rb_node *parent = NULL;
-	struct ion_buffer *entry;
-
-	while (*p) {
-		parent = *p;
-		entry = rb_entry(parent, struct ion_buffer, node);
-
-		if (buffer < entry) {
-			p = &(*p)->rb_left;
-		} else if (buffer > entry) {
-			p = &(*p)->rb_right;
-		} else {
-			pr_err("%s: buffer already found.", __func__);
-			BUG();
-		}
-	}
-
-	rb_link_node(&buffer->node, parent, p);
-	rb_insert_color(&buffer->node, &dev->buffers);
-}
-
-/* this function should only be called while dev->lock is held */
 static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 				     struct ion_device *dev,
 				     unsigned long len,
@@ -261,9 +233,6 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 		sg_dma_address(sg) = sg_phys(sg);
 		sg_dma_len(sg) = sg->length;
 	}
-	mutex_lock(&dev->buffer_lock);
-	ion_buffer_add(dev, buffer);
-	mutex_unlock(&dev->buffer_lock);
 	atomic_long_add(len, &heap->total_allocated);
 	return buffer;
 
@@ -292,13 +261,8 @@ static void _ion_buffer_destroy(struct kref *kref)
 {
 	struct ion_buffer *buffer = container_of(kref, struct ion_buffer, ref);
 	struct ion_heap *heap = buffer->heap;
-	struct ion_device *dev = buffer->dev;
 
 	msm_dma_buf_freed(buffer);
-
-	mutex_lock(&dev->buffer_lock);
-	rb_erase(&buffer->node, &dev->buffers);
-	mutex_unlock(&dev->buffer_lock);
 
 	if (heap->flags & ION_HEAP_FLAG_DEFER_FREE)
 		ion_heap_freelist_add(heap, buffer);
@@ -1891,22 +1855,6 @@ static int ion_debug_heap_show(struct seq_file *s, void *unused)
 
 	seq_puts(s, "----------------------------------------------------\n");
 	seq_puts(s, "orphaned allocations (info is from last known client):\n");
-	mutex_lock(&dev->buffer_lock);
-	for (n = rb_first(&dev->buffers); n; n = rb_next(n)) {
-		struct ion_buffer *buffer = rb_entry(n, struct ion_buffer,
-						     node);
-		if (buffer->heap->id != heap->id)
-			continue;
-		total_size += buffer->size;
-		if (!buffer->handle_count) {
-			seq_printf(s, "%16s %16u %16zu %d %d\n",
-				   buffer->task_comm, buffer->pid,
-				   buffer->size, buffer->kmap_cnt,
-				   atomic_read(&buffer->ref.refcount));
-			total_orphaned_size += buffer->size;
-		}
-	}
-	mutex_unlock(&dev->buffer_lock);
 	seq_puts(s, "----------------------------------------------------\n");
 	seq_printf(s, "%16s %16zu\n", "total orphaned",
 		   total_orphaned_size);
@@ -2121,8 +2069,6 @@ struct ion_device *ion_device_create(long (*custom_ioctl)
 debugfs_done:
 
 	idev->custom_ioctl = custom_ioctl;
-	idev->buffers = RB_ROOT;
-	mutex_init(&idev->buffer_lock);
 	init_rwsem(&idev->lock);
 	plist_head_init(&idev->heaps);
 	idev->clients = RB_ROOT;
