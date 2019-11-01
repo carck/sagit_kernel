@@ -1,6 +1,7 @@
 #
 # Makefile for the msm networking support.
 #
+ccflags-y += -I$(src)
 
 obj-$(CONFIG_MSM_RMNET_MHI) += msm_rmnet_mhi.o
 obj-$(CONFIG_ECM_IPA) += ecm_ipa.o
