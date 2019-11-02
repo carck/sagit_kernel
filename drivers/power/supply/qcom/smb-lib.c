@@ -2191,6 +2191,9 @@ static int smblib_fb_notifier_cb(struct notifier_block *self,
 	struct smb_charger *chg =
 			container_of(self, struct smb_charger, smb_fb_notif);
 
+	if (event != FB_EARLY_EVENT_BLANK) 
+		return 0;
+
 	mutex_lock(&chg->screen_lock);
 	if (evdata && evdata->data && chg) {
 		if (event == FB_EARLY_EVENT_BLANK) {
