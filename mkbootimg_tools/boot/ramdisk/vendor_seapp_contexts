@@ -1,0 +1,16 @@
+user=system seinfo=platform name=com.qualcomm.location.XT isPrivApp=true domain=location_app type=system_app_data_file
+user=system seinfo=platform name=com.qualcomm.qti.seccamservice:remote domain=seccam_app type=system_app_data_file
+user=system seinfo=platform name=com.qualcomm.qti.auth.fidocryptoservice domain=qsee_svc_app type=system_app_data_file
+user=system seinfo=platform name=com.qualcomm.qti.securemsm.mdtp.MdtpService domain=mdtpservice_app type=mdtp_svc_app_data_file
+user=_app seinfo=platform name=com.qualcomm.telephony domain=qtelephony type=app_data_file levelFrom=all
+user=system seinfo=platform name=com.qualcomm.qti.qdma domain=qdma_app type=system_app_data_file
+user=_app seinfo=platform name=com.qualcomm.timeservice domain=timeservice_app type=app_data_file levelFrom=all
+user=system seinfo=platform name=com.qualcomm.qti.logkit domain=qti_logkit_app type=system_app_data_file
+user=system seinfo=platform name=.imshelperservice domain=imshelper_app type=imshelper_app_data_file
+user=system seinfo=platform name=com.qualcomm.qti.perfdump domain=perfdump_app type=system_app_data_file
+user=system seinfo=platform name=com.qualcomm.qti.poweroffalarm domain=poweroffalarm_app type=system_app_data_file
+user=_app seinfo=sysmonapp domain=sysmonapp_app name=com.qualcomm.sysmonappInternal type=app_data_file levelFrom=all
+user=_app seinfo=sysmonapp domain=sysmonapp_app name=com.qualcomm.qti.sysmonappExternal type=app_data_file levelFrom=all
+user=_app seinfo=ssgapp domain=ssg_app name=com.qualcomm.qti.qms.service.connectionsecurity type=app_data_file levelFrom=all
+user=_app seinfo=ssgapp domain=ssg_app name=com.qualcomm.qti.qms.service.telemetry type=app_data_file levelFrom=all
+user=_app seinfo=ssgapp domain=ssg_app name=com.qualcomm.qti.qms.service.trustzoneaccess type=app_data_file levelFrom=all

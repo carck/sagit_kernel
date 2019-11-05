@@ -1,0 +1,6 @@
+on property:vendor.kpdpwr.reset.enabled=0
+    write /sys/bus/platform/devices/800f000.qcom,spmi:qcom,pm8998@0:qcom,power-on@800/kpdpwr_reset 0
+
+on property:vendor.kpdpwr.reset.enabled=1
+    write /sys/bus/platform/devices/800f000.qcom,spmi:qcom,pm8998@0:qcom,power-on@800/kpdpwr_reset 1
+

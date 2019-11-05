@@ -1,0 +1,21 @@
+on early-init
+    mkdir /cust 0775 system system
+
+on init
+    mkdir /cust 0775 system system
+
+on fs
+    wait /dev/block/bootdevice/by-name/cust
+    mount ext4 /dev/block/bootdevice/by-name/cust  /cust ro noatime nosuid nodev barrier=1
+    chown system system /cust
+    chmod 0775 /cust
+
+on post-fs
+    # We chown/chmod /cust again so because mount is run as root + defaults
+    chown system system /cust
+    chmod 0775 /cust
+    # We restorecon /cust in case the cust partition has been reset.
+    restorecon_recursive /cust
+
+    # create the lost+found directories, so as to enforce our permissions
+    mkdir /cust/lost+found 0770 root root

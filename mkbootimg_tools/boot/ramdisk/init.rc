@@ -7,6 +7,7 @@
 import /init.environ.rc
 import /init.usb.rc
 import /init.${ro.hardware}.rc
+import /vendor/etc/init/hw/init.${ro.hardware}.rc
 import /init.usb.configfs.rc
 import /init.${ro.zygote}.rc
 
@@ -22,11 +23,12 @@ on early-init
     # Set the security context of /adb_keys if present.
     restorecon /adb_keys
 
-    # Shouldn't be necessary, but sdcard won't start without it. http://b/22568628.
-    mkdir /mnt 0775 root system
-
     # Set the security context of /postinstall if present.
     restorecon /postinstall
+
+    # Mount cgroup mount point for cpu accounting
+    mount cgroup none /acct nodev noexec nosuid cpuacct
+    mkdir /acct/uid
 
     start ueventd
 
@@ -37,47 +39,46 @@ on init
     copy /proc/cmdline /dev/urandom
     copy /default.prop /dev/urandom
 
-    # Backward compatibility.
+    symlink /system/bin /bin
     symlink /system/etc /etc
+
+    # Backward compatibility.
     symlink /sys/kernel/debug /d
 
     # Link /vendor to /system/vendor for devices without a vendor partition.
     symlink /system/vendor /vendor
 
-    # Mount cgroup mount point for cpu accounting
-    mount cgroup none /acct cpuacct
-    mkdir /acct/uid
-
     # Create energy-aware scheduler tuning nodes
     mkdir /dev/stune
-    mount cgroup none /dev/stune schedtune
+    mount cgroup none /dev/stune nodev noexec nosuid schedtune
     mkdir /dev/stune/foreground
     mkdir /dev/stune/background
-    mkdir /dev/stune/system-background
     mkdir /dev/stune/top-app
+    mkdir /dev/stune/rt
+    mkdir /dev/stune/audio-app
     chown system system /dev/stune
     chown system system /dev/stune/foreground
     chown system system /dev/stune/background
-    chown system system /dev/stune/system-background
     chown system system /dev/stune/top-app
+    chown system system /dev/stune/rt
+    chown system system /dev/stune/audio-app
     chown system system /dev/stune/tasks
     chown system system /dev/stune/foreground/tasks
     chown system system /dev/stune/background/tasks
-    chown system system /dev/stune/system-background/tasks
     chown system system /dev/stune/top-app/tasks
+    chown system system /dev/stune/rt/tasks
+    chown system system /dev/stune/audio-app/tasks
     chmod 0664 /dev/stune/tasks
     chmod 0664 /dev/stune/foreground/tasks
     chmod 0664 /dev/stune/background/tasks
-    chmod 0664 /dev/stune/system-background/tasks
     chmod 0664 /dev/stune/top-app/tasks
+    chmod 0664 /dev/stune/rt/tasks
+    chmod 0664 /dev/stune/audio-app/tasks
 
-    # Mount staging areas for devices managed by vold
-    # See storage config details at http://source.android.com/tech/storage/
-    mount tmpfs tmpfs /mnt mode=0755,uid=0,gid=1000
     restorecon_recursive /mnt
 
-    mount configfs none /config
-    chmod 0775 /config/sdcardfs
+    mount configfs none /config nodev noexec nosuid
+    chmod 0770 /config/sdcardfs
     chown system package_info /config/sdcardfs
 
     mkdir /mnt/secure 0700 root root
@@ -104,12 +105,6 @@ on init
     symlink /storage/self/primary /mnt/sdcard
     symlink /mnt/user/0/primary /mnt/runtime/default/self/primary
 
-    # root memory control cgroup, used by lmkd
-    mkdir /dev/memcg 0700 root system
-    mount cgroup none /dev/memcg memory
-    # app mem cgroups, used by activity manager, lmkd and zygote
-    mkdir /dev/memcg/apps/ 0755 system system
-
     write /proc/sys/kernel/panic_on_oops 1
     write /proc/sys/kernel/hung_task_timeout_secs 0
     write /proc/cpu/alignment 4
@@ -124,12 +119,17 @@ on init
     write /proc/sys/kernel/sched_child_runs_first 0
 
     write /proc/sys/kernel/randomize_va_space 2
-    write /proc/sys/kernel/kptr_restrict 2
     write /proc/sys/vm/mmap_min_addr 32768
     write /proc/sys/net/ipv4/ping_group_range "0 2147483647"
     write /proc/sys/net/unix/max_dgram_qlen 600
     write /proc/sys/kernel/sched_rt_runtime_us 950000
     write /proc/sys/kernel/sched_rt_period_us 1000000
+
+    # Assign reasonable ceiling values for socket rcv/snd buffers.
+    # These should almost always be overridden by the target per the
+    # the corresponding technology maximums.
+    write /proc/sys/net/core/rmem_max  262144
+    write /proc/sys/net/core/wmem_max  262144
 
     # reflect fwmark from incoming packets onto generated replies
     write /proc/sys/net/ipv4/fwmark_reflect 1
@@ -142,73 +142,77 @@ on init
     write /proc/sys/net/ipv4/conf/all/accept_redirects 0
     write /proc/sys/net/ipv6/conf/all/accept_redirects 0
 
+    # /proc/net/fib_trie leaks interface IP addresses
+    chmod 0400 /proc/net/fib_trie
+
     # Create cgroup mount points for process groups
     mkdir /dev/cpuctl
-    mount cgroup none /dev/cpuctl cpu
+    mount cgroup none /dev/cpuctl nodev noexec nosuid cpu
     chown system system /dev/cpuctl
     chown system system /dev/cpuctl/tasks
     chmod 0666 /dev/cpuctl/tasks
     write /dev/cpuctl/cpu.rt_period_us 1000000
     write /dev/cpuctl/cpu.rt_runtime_us 950000
 
-    mkdir /dev/cpuctl/bg_non_interactive
-    chown system system /dev/cpuctl/bg_non_interactive/tasks
-    chmod 0666 /dev/cpuctl/bg_non_interactive/tasks
-    # 5.0 %
-    write /dev/cpuctl/bg_non_interactive/cpu.shares 52
-    write /dev/cpuctl/bg_non_interactive/cpu.rt_period_us 1000000
-    # active FIFO threads will never be in BG
-    write /dev/cpuctl/bg_non_interactive/cpu.rt_runtime_us 10000
-
     # sets up initial cpusets for ActivityManager
     mkdir /dev/cpuset
-    mount cpuset none /dev/cpuset
+    mount cpuset none /dev/cpuset nodev noexec nosuid
 
     # this ensures that the cpusets are present and usable, but the device's
     # init.rc must actually set the correct cpus
     mkdir /dev/cpuset/foreground
-    write /dev/cpuset/foreground/cpus 0
-    write /dev/cpuset/foreground/mems 0
-    mkdir /dev/cpuset/foreground/boost
-    write /dev/cpuset/foreground/boost/cpus 0
-    write /dev/cpuset/foreground/boost/mems 0
+    copy /dev/cpuset/cpus /dev/cpuset/foreground/cpus
+    copy /dev/cpuset/mems /dev/cpuset/foreground/mems
     mkdir /dev/cpuset/background
-    write /dev/cpuset/background/cpus 0
-    write /dev/cpuset/background/mems 0
+    copy /dev/cpuset/cpus /dev/cpuset/background/cpus
+    copy /dev/cpuset/mems /dev/cpuset/background/mems
 
     # system-background is for system tasks that should only run on
     # little cores, not on bigs
     # to be used only by init, so don't change system-bg permissions
     mkdir /dev/cpuset/system-background
-    write /dev/cpuset/system-background/cpus 0
-    write /dev/cpuset/system-background/mems 0
+    copy /dev/cpuset/cpus /dev/cpuset/system-background/cpus
+    copy /dev/cpuset/mems /dev/cpuset/system-background/mems
+
+    # restricted is for system tasks that are being throttled
+    # due to screen off.
+    mkdir /dev/cpuset/restricted
+    copy /dev/cpuset/cpus /dev/cpuset/restricted/cpus
+    copy /dev/cpuset/mems /dev/cpuset/restricted/mems
 
     mkdir /dev/cpuset/top-app
-    write /dev/cpuset/top-app/cpus 0
-    write /dev/cpuset/top-app/mems 0
+    copy /dev/cpuset/cpus /dev/cpuset/top-app/cpus
+    copy /dev/cpuset/mems /dev/cpuset/top-app/mems
+
+    mkdir /dev/cpuset/audio-app
+    copy /dev/cpuset/cpus /dev/cpuset/audio-app/cpus
+    copy /dev/cpuset/mems /dev/cpuset/audio-app/mems
 
     # change permissions for all cpusets we'll touch at runtime
     chown system system /dev/cpuset
     chown system system /dev/cpuset/foreground
-    chown system system /dev/cpuset/foreground/boost
     chown system system /dev/cpuset/background
     chown system system /dev/cpuset/system-background
     chown system system /dev/cpuset/top-app
+    chown system system /dev/cpuset/audio-app
+    chown system system /dev/cpuset/restricted
     chown system system /dev/cpuset/tasks
     chown system system /dev/cpuset/foreground/tasks
-    chown system system /dev/cpuset/foreground/boost/tasks
     chown system system /dev/cpuset/background/tasks
     chown system system /dev/cpuset/system-background/tasks
     chown system system /dev/cpuset/top-app/tasks
+    chown system system /dev/cpuset/audio-app/tasks
+    chown system system /dev/cpuset/restricted/tasks
 
     # set system-background to 0775 so SurfaceFlinger can touch it
     chmod 0775 /dev/cpuset/system-background
 
     chmod 0664 /dev/cpuset/foreground/tasks
-    chmod 0664 /dev/cpuset/foreground/boost/tasks
     chmod 0664 /dev/cpuset/background/tasks
     chmod 0664 /dev/cpuset/system-background/tasks
     chmod 0664 /dev/cpuset/top-app/tasks
+    chmod 0664 /dev/cpuset/audio-app/tasks
+    chmod 0664 /dev/cpuset/restricted/tasks
     chmod 0664 /dev/cpuset/tasks
 
 
@@ -222,14 +226,22 @@ on init
     # This is needed by any process that uses socket tagging.
     chmod 0644 /dev/xt_qtaguid
 
+    mkdir /dev/cg2_bpf
+    mount cgroup2 cg2_bpf /dev/cg2_bpf nodev noexec nosuid
+    chown root root /dev/cg2_bpf
+    chmod 0600 /dev/cg2_bpf
+    mount bpf bpf /sys/fs/bpf nodev noexec nosuid
+
     # Create location for fs_mgr to store abbreviated output from filesystem
     # checker programs.
     mkdir /dev/fscklogs 0770 root system
 
     # pstore/ramoops previous console log
-    mount pstore pstore /sys/fs/pstore
+    mount pstore pstore /sys/fs/pstore nodev noexec nosuid
     chown system log /sys/fs/pstore/console-ramoops
     chmod 0440 /sys/fs/pstore/console-ramoops
+    chown system log /sys/fs/pstore/console-ramoops-0
+    chmod 0440 /sys/fs/pstore/console-ramoops-0
     chown system log /sys/fs/pstore/pmsg-ramoops-0
     chmod 0440 /sys/fs/pstore/pmsg-ramoops-0
 
@@ -243,17 +255,20 @@ on init
     export DOWNLOAD_CACHE /data/cache
 
     # set RLIMIT_NICE to allow priorities from 19 to -20
-    setrlimit 13 40 40
+    setrlimit nice 40 40
+
+    # Allow up to 32K FDs per process
+    setrlimit nofile 32768 32768
+
+    # This allows the ledtrig-transient properties to be created here so
+    # that they can be chown'd to system:system later on boot
+    write /sys/class/leds/vibrator/trigger "transient"
 
 # Healthd can trigger a full boot from charger mode by signaling this
 # property when the power button is held.
 on property:sys.boot_from_charger_mode=1
     class_stop charger
     trigger late-init
-
-# Load properties from /system/ + /factory after fs mount.
-on load_system_props_action
-    load_system_props
 
 on load_persist_props_action
     load_persist_props
@@ -272,13 +287,9 @@ on late-init
     # '--early' can be specified to skip entries with 'latemount'.
     # /system and /vendor must be mounted by the end of the fs stage,
     # while /data is optional.
+    trigger factory-fs
     trigger fs
     trigger post-fs
-
-    # Load properties from /system/ + /factory after fs mount. Place
-    # this in another action so that the load will be scheduled after the prior
-    # issued fs triggers have completed.
-    trigger load_system_props_action
 
     # Mount fstab in init.{$device}.rc by mount_all with '--late' parameter
     # to only mount entries with 'latemount'. This is needed if '--early' is
@@ -291,6 +302,9 @@ on late-init
     # /data, which in turn can only be loaded when system properties are present.
     trigger post-fs-data
 
+    # Now we can start zygote for devices with file based encryption
+    trigger zygote-start
+
     # Load persist properties and override properties (if enabled) from /data.
     trigger load_persist_props_action
 
@@ -299,22 +313,40 @@ on late-init
 
     trigger early-boot
     trigger boot
-
+    trigger mmi
 
 on post-fs
+    # Load properties from
+    #     /system/build.prop,
+    #     /odm/build.prop,
+    #     /vendor/build.prop and
+    #     /factory/factory.prop
+    load_system_props
+    # start essential services
     start logd
-    # once everything is setup, no need to modify /
-    mount rootfs rootfs / ro remount
+    start servicemanager
+    start hwservicemanager
+    start vndservicemanager
+
+    # Once everything is setup, no need to modify /.
+    # The bind+ro combination avoids modifying any other mount flags.
+    mount rootfs rootfs / remount bind ro
     # Mount shared so changes propagate into child namespaces
     mount rootfs rootfs / shared rec
     # Mount default storage into root namespace
-    mount none /mnt/runtime/default /storage slave bind rec
+    mount none /mnt/runtime/default /storage bind rec
+    mount none none /storage slave rec
 
     # Make sure /sys/kernel/debug (if present) is labeled properly
-    restorecon_recursive /sys/kernel/debug
-
+    # Note that tracefs may be mounted under debug, so we need to cross filesystems
+    restorecon --recursive --cross-filesystems /sys/kernel/debug
     # Make sure /sys/kernel/debug/tracing (if present) is labeled properly
+    # restorecon_recursive /sys/kernel/debug/tracing should be placed in front of
+    # chmod 0755 /sys/kernel/debug/tracing. because restorecon_recursive will traversal
+    # /sys/kernel/debug/tracing/ dir, and this will trigget tracefs automount.
+    # if tracefs do not automount, chmod will ineffectiveness.
     restorecon_recursive /sys/kernel/debug/tracing
+    chmod 0755 /sys/kernel/debug/tracing
 
     # We chown/chmod /cache again so because mount is run as root + defaults
     chown system cache /cache
@@ -327,6 +359,7 @@ on post-fs
     mkdir /cache/recovery 0770 system cache
     #add by xiaomi for write fs to /cache/recovery
     setprop cache.trigger 1
+
     # Backup/restore mechanism uses the cache partition
     mkdir /cache/backup_stage 0755 system system
     mkdir /cache/backup 0700 system system
@@ -352,6 +385,18 @@ on post-fs
     # create the lost+found directories, so as to enforce our permissions
     mkdir /cache/lost+found 0770 root root
 
+    restorecon_recursive /metadata
+    mkdir /metadata/vold
+    chmod 0700 /metadata/vold
+
+on late-fs
+    # Ensure that tracefs has the correct permissions.
+    # This does not work correctly if it is called in post-fs.
+    chmod 0755 /sys/kernel/debug/tracing
+
+    # HALs required before storage encryption can get unlocked (FBE/FDE)
+    class_start early_hal
+
 on property:cache.trigger=1 && property:persist.radio.goldencopy_flag=true
     write /cache/recovery/efs 1
 
@@ -362,10 +407,6 @@ on post-fs-data
     # We restorecon /data in case the userdata partition has been reset.
     restorecon /data
 
-    # start debuggerd to make debugging early-boot crashes easier.
-    start debuggerd
-    start debuggerd64
-
     # Make sure we have the device encryption key.
     start vold
     installkey /data
@@ -373,25 +414,44 @@ on post-fs-data
     # Start bootcharting as soon as possible after the data partition is
     # mounted to collect more data.
     mkdir /data/bootchart 0755 shell shell
-    bootchart_init
+    bootchart start
 
     # Avoid predictable entropy pool. Carry over entropy from previous boot.
     copy /data/system/entropy.dat /dev/urandom
 
     # create basic filesystem structure
     mkdir /data/misc 01771 system misc
-    mkdir /data/misc/bluedroid 02770 bluetooth net_bt_stack
+    mkdir /data/misc/recovery 0770 system log
+    copy /data/misc/recovery/ro.build.fingerprint /data/misc/recovery/ro.build.fingerprint.1
+    chmod 0440 /data/misc/recovery/ro.build.fingerprint.1
+    chown system log /data/misc/recovery/ro.build.fingerprint.1
+    write /data/misc/recovery/ro.build.fingerprint ${ro.build.fingerprint}
+    chmod 0440 /data/misc/recovery/ro.build.fingerprint
+    chown system log /data/misc/recovery/ro.build.fingerprint
+    mkdir /data/misc/recovery/proc 0770 system log
+    copy /data/misc/recovery/proc/version /data/misc/recovery/proc/version.1
+    chmod 0440 /data/misc/recovery/proc/version.1
+    chown system log /data/misc/recovery/proc/version.1
+    copy /proc/version /data/misc/recovery/proc/version
+    chmod 0440 /data/misc/recovery/proc/version
+    chown system log /data/misc/recovery/proc/version
+    mkdir /data/misc/bluedroid 02770 bluetooth bluetooth
     # Fix the access permissions and group ownership for 'bt_config.conf'
     chmod 0660 /data/misc/bluedroid/bt_config.conf
-    chown bluetooth net_bt_stack /data/misc/bluedroid/bt_config.conf
-    mkdir /data/misc/bluetooth 0770 system system
+    chown bluetooth bluetooth /data/misc/bluedroid/bt_config.conf
+    mkdir /data/misc/bluetooth 0770 bluetooth bluetooth
+    mkdir /data/misc/bluetooth/logs 0770 bluetooth bluetooth
     mkdir /data/misc/keystore 0700 keystore keystore
     mkdir /data/misc/gatekeeper 0700 system system
     mkdir /data/misc/keychain 0771 system system
     mkdir /data/misc/net 0750 root shell
     mkdir /data/misc/radio 0770 system radio
     mkdir /data/misc/sms 0770 system radio
+    mkdir /data/misc/carrierid 0770 system radio
+    mkdir /data/misc/apns 0770 system radio
     mkdir /data/misc/zoneinfo 0775 system system
+    mkdir /data/misc/network_watchlist 0774 system system
+    mkdir /data/misc/textclassifier 0771 system system
     mkdir /data/misc/vpn 0770 system vpn
     mkdir /data/misc/shared_relro 0771 shared_relro shared_relro
     mkdir /data/misc/systemkeys 0700 system system
@@ -411,16 +471,26 @@ on post-fs-data
     mkdir /data/misc/vold 0700 root root
     mkdir /data/misc/boottrace 0771 system shell
     mkdir /data/misc/update_engine 0700 root root
+    mkdir /data/misc/update_engine_log 02750 root log
     mkdir /data/misc/trace 0700 root root
+    # create location to store surface and window trace files
+    mkdir /data/misc/wmtrace 0700 system system
     # profile file layout
     mkdir /data/misc/profiles 0771 system system
     mkdir /data/misc/profiles/cur 0771 system system
     mkdir /data/misc/profiles/ref 0771 system system
     mkdir /data/misc/profman 0770 system shell
+    mkdir /data/misc/gcov 0770 root root
+
+    mkdir /data/vendor 0771 root root
+    mkdir /data/vendor_ce 0771 root root
+    mkdir /data/vendor_de 0771 root root
+    mkdir /data/vendor/hardware 0771 root root
 
     # For security reasons, /data/local/tmp should always be empty.
     # Do not place files or directories in /data/local/tmp
     mkdir /data/local/tmp 0771 shell shell
+    mkdir /data/local/traces 0777 shell shell
     mkdir /data/data 0771 system system
     mkdir /data/app-private 0771 system system
     mkdir /data/app-ephemeral 0771 system system
@@ -429,6 +499,12 @@ on post-fs-data
     mkdir /data/app 0771 system system
     mkdir /data/property 0700 root root
     mkdir /data/tombstones 0771 system system
+    mkdir /data/tombstones/modem 0771 system system
+    mkdir /data/tombstones/lpass 0771 system system
+    mkdir /data/tombstones/wcnss 0771 system system
+    mkdir /data/tombstones/dsps 0771 system system
+    mkdir /data/vendor/tombstones 0771 root root
+    mkdir /data/vendor/tombstones/wifi 0771 wifi wifi
 
     # create dalvik-cache, so as to enforce our permissions
     mkdir /data/dalvik-cache 0771 root root
@@ -457,8 +533,9 @@ on post-fs-data
 
     mkdir /data/anr 0775 system system
 
-    # Separate location for storing security policy files on data
-    mkdir /data/security 0711 system system
+    # NFC: create data/nfc for nv storage
+    mkdir /data/nfc 0770 nfc nfc
+    mkdir /data/nfc/param 0770 nfc nfc
 
     # Create all remaining /data root dirs so that they are made through init
     # and get proper encryption policy installed
@@ -489,26 +566,49 @@ on post-fs-data
 
     init_user0
 
-    # Reload policy from /data/security if present.
-    setprop selinux.reload_policy 1
-
     # Set SELinux security contexts on upgrade or policy update.
-    restorecon_recursive /data
+    restorecon --recursive --skip-ce /data
 
     # Check any timezone data in /data is newer than the copy in /system, delete if not.
     exec - system system -- /system/bin/tzdatacheck /system/usr/share/zoneinfo /data/misc/zoneinfo
 
-    # If there is no fs-post-data action in the init.<device>.rc file, you
+    # If there is no post-fs-data action in the init.<device>.rc file, you
     # must uncomment this line, otherwise encrypted filesystems
     # won't work.
     # Set indication (checked by vold) that we have finished this action
     #setprop vold.post_fs_data_done 1
+
+# It is recommended to put unnecessary data/ initialization from post-fs-data
+# to start-zygote in device's init.rc to unblock zygote start.
+on zygote-start && property:ro.crypto.state=unencrypted
+    # A/B update verifier that marks a successful boot.
+    exec_start update_verifier_nonencrypted
+    start netd
+    start zygote
+    start zygote_secondary
+
+on zygote-start && property:ro.crypto.state=unsupported
+    # A/B update verifier that marks a successful boot.
+    exec_start update_verifier_nonencrypted
+    start netd
+    start zygote
+    start zygote_secondary
+
+on zygote-start && property:ro.crypto.state=encrypted && property:ro.crypto.type=file
+    # A/B update verifier that marks a successful boot.
+    exec_start update_verifier_nonencrypted
+    start netd
+    start zygote
+    start zygote_secondary
 
 on boot
     # basic network init
     ifup lo
     hostname localhost
     domainname localdomain
+
+    # IPsec SA default expiration length
+    write /proc/sys/net/core/xfrm_acq_expires 3600
 
     # Memory management.  Basic kernel parameters, and allow the high
     # level system server to be able to adjust the kernel OOM driver
@@ -567,6 +667,11 @@ on boot
     chown system system /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq
     chmod 0660 /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq
 
+    chown system system /sys/class/leds/vibrator/trigger
+    chown system system /sys/class/leds/vibrator/activate
+    chown system system /sys/class/leds/vibrator/brightness
+    chown system system /sys/class/leds/vibrator/duration
+    chown system system /sys/class/leds/vibrator/state
     chown system system /sys/class/timed_output/vibrator/enable
     chown system system /sys/class/leds/keyboard-backlight/brightness
     chown system system /sys/class/leds/lcd-backlight/brightness
@@ -576,13 +681,11 @@ on boot
     chown system system /sys/class/leds/white/brightness
     chown system system /sys/class/leds/white/blink
     chown system system /sys/class/leds/red/brightness
-    chown system system /sys/class/leds/red/blink
     chown system system /sys/class/leds/green/brightness
     chown system system /sys/class/leds/blue/brightness
     chown system system /sys/class/leds/red/device/grpfreq
     chown system system /sys/class/leds/red/device/grppwm
     chown system system /sys/class/leds/red/device/blink
-    chown system system /sys/class/timed_output/vibrator/enable
     chown system system /sys/module/sco/parameters/disable_esco
     chown system system /sys/kernel/ipv4/tcp_wmem_min
     chown system system /sys/kernel/ipv4/tcp_wmem_def
@@ -595,11 +698,12 @@ on boot
     # Define default initial receive window size in segments.
     setprop net.tcp.default_init_rwnd 60
 
+    # Start standard binderized HAL daemons
+    class_start hal
+
     class_start core
 
 on nonencrypted
-    # A/B update verifier that marks a successful boot.
-    exec - root cache -- /system/bin/update_verifier nonencrypted
     class_start main
     class_start late_start
 
@@ -617,17 +721,25 @@ on property:vold.decrypt=trigger_load_persist_props
     start logd
     start logd-reinit
 
+# corefile limit
+on property:persist.debug.trace=1
+   mkdir /data/core 0777 root root
+   write /proc/sys/kernel/core_pattern "/data/core/%E.%p.%e"
+
 on property:vold.decrypt=trigger_post_fs_data
     trigger post-fs-data
+    trigger zygote-start
 
 on property:vold.decrypt=trigger_restart_min_framework
     # A/B update verifier that marks a successful boot.
-    exec - root cache -- /system/bin/update_verifier trigger_restart_min_framework
+    exec_start update_verifier
     class_start main
 
 on property:vold.decrypt=trigger_restart_framework
+    stop surfaceflinger
+    start surfaceflinger
     # A/B update verifier that marks a successful boot.
-    exec - root cache -- /system/bin/update_verifier trigger_restart_framework
+    exec_start update_verifier
     class_start main
     class_start late_start
 
@@ -635,8 +747,8 @@ on property:vold.decrypt=trigger_shutdown_framework
     class_reset late_start
     class_reset main
 
-on property:sys.powerctl=*
-    powerctl ${sys.powerctl}
+on property:sys.boot_completed=1
+    bootchart stop
 
 # system server cannot write to /proc/sys files,
 # and chown/chmod does not work for /proc/sys/ entries.
@@ -654,18 +766,17 @@ on property:security.perf_harden=0
 on property:security.perf_harden=1
     write /proc/sys/kernel/perf_event_paranoid 3
 
+# on shutdown
+# In device's init.rc, this trigger can be used to do device-specific actions
+# before shutdown. e.g disable watchdog and mask error handling
+
 ## Daemon processes to be run by init.
 ##
 service ueventd /sbin/ueventd
     class core
     critical
     seclabel u:r:ueventd:s0
-
-service healthd /sbin/healthd
-    class core
-    critical
-    seclabel u:r:healthd:s0
-    group root system wakelock
+    shutdown critical
 
 service console /system/bin/sh
     class core
@@ -674,18 +785,15 @@ service console /system/bin/sh
     user shell
     group shell log readproc
     seclabel u:r:shell:s0
+    setenv HOSTNAME console
 
 on property:ro.debuggable=1
     # Give writes to anyone for the trace folder on debug builds.
     # The folder is used to store method traces.
     chmod 0773 /data/misc/trace
+    # Give reads to anyone for the window trace folder on debug builds.
+    chmod 0775 /data/misc/wmtrace
     start console
-
-service nv_mac /system/bin/nv_mac
-   class main
-   user root
-   group net_raw
-   oneshot
 
 service flash_recovery /system/bin/install-recovery.sh
     class main

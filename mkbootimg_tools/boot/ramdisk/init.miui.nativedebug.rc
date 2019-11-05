@@ -1,0 +1,11 @@
+# nativedebug rc
+
+on property:sys.miui.ndcd=on
+    mkdir /data/system/nativedebug/core 0777 root root
+    chmod 0777 /data/system/nativedebug/core
+    restorecon /data/system/nativedebug/core
+    write /proc/sys/kernel/core_pattern "|/system/bin/micd %e %p"
+
+on property:sys.miui.ndcd=off
+    write /proc/sys/kernel/core_pattern "/dev/null"
+
