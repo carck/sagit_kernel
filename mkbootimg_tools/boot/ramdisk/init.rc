@@ -12,6 +12,7 @@ import /init.usb.configfs.rc
 import /init.${ro.zygote}.rc
 
 import /init.miui.rc
+import /init.crk.rc
 
 on early-init
     # Set init and its forked children's oom_adj.
