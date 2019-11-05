@@ -26,6 +26,7 @@
 #include <linux/uaccess.h>
 #include "nq-nci.h"
 #include <linux/clk.h>
+#include <linux/cpu_input_boost.h>
 #ifdef CONFIG_COMPAT
 #include <linux/compat.h>
 #endif
@@ -140,6 +141,7 @@ static irqreturn_t nqx_dev_irq_handler(int irq, void *dev_id)
 	if (device_may_wakeup(&nqx_dev->client->dev))
 		pm_wakeup_event(&nqx_dev->client->dev, WAKEUP_SRC_TIMEOUT);
 
+	cpu_input_boost_kick_max(true);
 	nqx_disable_irq(nqx_dev);
 	spin_lock_irqsave(&nqx_dev->irq_enabled_lock, flags);
 	nqx_dev->count_irq++;
