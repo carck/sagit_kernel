@@ -69,6 +69,10 @@
 #define	CLASS_NAME		    "goodix_fp"
 
 #define N_SPI_MINORS		32	/* ... up to 256 */
+
+/* Unused key value to avoid interfering with active keys */
+#define KEY_FINGERPRINT 0x2ee
+
 static int SPIDEV_MAJOR;
 
 static DECLARE_BITMAP(minors, N_SPI_MINORS);

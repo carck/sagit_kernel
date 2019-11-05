@@ -290,7 +290,7 @@ static void update_related_freq_table(struct cpufreq_policy *policy)
 	int cpu, num_of_freqs;
 	struct cpufreq_frequency_table *table;
 
-	table = cpufreq_frequency_get_table(policy->cpu);
+	table = policy->freq_table;
 	if (!table) {
 		pr_err("Couldn't get freq table for cpu%d\n",
 				policy->cpu);

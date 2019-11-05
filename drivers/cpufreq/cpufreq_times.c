@@ -359,7 +359,7 @@ void cpufreq_times_create_policy(struct cpufreq_policy *policy)
 	if (all_freqs[policy->cpu])
 		return;
 
-	table = cpufreq_frequency_get_table(policy->cpu);
+	table = policy->freq_table;
 	if (!table)
 		return;
 

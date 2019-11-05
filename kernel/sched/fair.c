@@ -4881,6 +4881,9 @@ unsigned long boosted_cpu_util(int cpu);
 static void
 enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 {
+#ifdef CONFIG_SMP
+	int task_new;
+#endif
 	struct cfs_rq *cfs_rq;
 	struct sched_entity *se = &p->se;
 	/*
@@ -4891,7 +4894,7 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 	 */
 	util_est_enqueue(&rq->cfs, p);
 #ifdef CONFIG_SMP
-	int task_new = flags & ENQUEUE_WAKEUP_NEW;
+	task_new = flags & ENQUEUE_WAKEUP_NEW;
 
 	/*
 	 * Update SchedTune accounting.
@@ -6926,15 +6929,14 @@ static int select_energy_cpu_brute(struct task_struct *p, int prev_cpu, int sync
 {
 	struct sched_domain *sd;
 	int target_cpu = prev_cpu, tmp_target, tmp_backup;
-	bool boosted, prefer_idle, about_to_idle;;
-	int cpu = smp_processor_id();
+	bool boosted, prefer_idle;
 
 	schedstat_inc(p, se.statistics.nr_wakeups_secb_attempts);
 	schedstat_inc(this_rq(), eas_stats.secb_attempts);
 
-	about_to_idle = (cpu_rq(cpu)->nr_running < 2);
-
-	if (sysctl_sched_sync_hint_enable && sync && about_to_idle) {
+	if (sysctl_sched_sync_hint_enable && sync) {
+		int cpu = smp_processor_id();
+		
 		if (cpumask_test_cpu(cpu, tsk_cpus_allowed(p))) {
 			schedstat_inc(p, se.statistics.nr_wakeups_secb_sync);
 			schedstat_inc(this_rq(), eas_stats.secb_sync);

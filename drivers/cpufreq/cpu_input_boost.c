@@ -57,7 +57,7 @@ static struct boost_drv *boost_drv_g;
 
 static u32 get_boost_freq(struct boost_drv *b, u32 cpu)
 {
-	if (cpumask_test_cpu(cpu, cpu_lp_mask))
+	if (cpu < 4)
 		return input_boost_freq_lp;
 
 	return input_boost_freq_hp;
