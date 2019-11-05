@@ -20,6 +20,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/cpufreq.h>
+#include <linux/cpufreq_times.h>
 #include <linux/cpu.h>
 #include <linux/cpumask.h>
 #include <linux/suspend.h>
@@ -93,6 +94,7 @@ unsigned int msm_cpufreq_fast_switch(struct cpufreq_policy *policy,
 	c->rate = new_freq * 1000;
 
 	cpufreq_stats_record_index_transition(policy, index);
+	cpufreq_times_record_transition_index(policy->cpu, index);
 
 	return new_freq;
 }

@@ -408,6 +408,11 @@ void cpufreq_task_times_remove_uids(uid_t uid_start, uid_t uid_end)
 	spin_unlock_irqrestore(&uid_lock, flags);
 }
 
+void cpufreq_times_record_transition_index(unsigned int cpu, unsigned int index) {
+	struct cpu_freqs *freqs = all_freqs[cpu];
+	WRITE_ONCE(freqs->last_index, index);
+}
+
 void cpufreq_times_record_transition(struct cpufreq_freqs *freq)
 {
 	int index;
