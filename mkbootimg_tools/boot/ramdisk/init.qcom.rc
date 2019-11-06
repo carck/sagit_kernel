@@ -474,7 +474,7 @@ service vendor.ss_ramdump /system/bin/subsystem_ramdump_system 2
     class late_start
 #   user system
     group system
-#   disabled
+   disabled
 
 on property:ro.vendor.iocgrp.config=1
     mkdir /dev/blkio
@@ -728,7 +728,7 @@ on property:sys.sysctl.tcp_adv_win_scale=*
     write /proc/sys/net/ipv4/tcp_adv_win_scale ${sys.sysctl.tcp_adv_win_scale}
 
 service wpa_supplicant /vendor/bin/hw/wpa_supplicant \
-    -O/data/vendor/wifi/wpa/sockets -puse_p2p_group_interface=1 -dd \
+    -O/data/vendor/wifi/wpa/sockets -puse_p2p_group_interface=1 -q \
     -g@android:vendor_wpa_wlan0
 #   we will start as root and wpa_supplicant will switch to user wifi
 #   after setting up the capabilities required for WEXT
@@ -744,7 +744,7 @@ service wpa_supplicant /vendor/bin/hw/wpa_supplicant \
 service vendor.wigig_supplicant /vendor/bin/hw/wpa_supplicant \
     -iwigig0 -Dnl80211 -c/data/vendor/wifi/wigig_supplicant.conf \
     -m/data/vendor/wifi/wigig_p2p_supplicant.conf \
-    -O/data/vendor/wifi/wigig_sockets -dd \
+    -O/data/vendor/wifi/wigig_sockets -q \
     -e/data/vendor/wifi/wigig_entropy.bin -g@android:wpa_wigig0 \
     -S wigigsvc
     #   we will start as root and wpa_supplicant will switch to user wifi
@@ -875,7 +875,7 @@ on property:persist.vendor.data.perf_ko_load=1
 
 on property:persist.vendor.data.perf_ko_load=0
     exec u:r:vendor_modprobe:s0 -- /vendor/bin/modprobe -r -d /vendor/lib/modules rmnet_perf
-service cnss_diag /system/vendor/bin/cnss_diag -q -f
+service cnss_diag /system/vendor/bin/cnss_diag -s -f
     class late_start
     user system
     group system wifi inet net_admin sdcard_rw media_rw diag
@@ -1021,7 +1021,7 @@ on property:sys.boot_completed=1
 
 on property:sys.miui.user_authenticated=true
     start cnss_diag
-    start tcpdump
+#    start tcpdump
 
 on property:ro.vendor.ril.mbn_copy_completed=1
     write /data/vendor/radio/copy_complete 1
