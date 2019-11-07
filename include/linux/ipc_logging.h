@@ -42,6 +42,12 @@ struct decode_context {
 	int size;               /* size of output buffer */
 };
 
+struct dummy_ipc_log_context {
+	int dummy;
+};
+
+static struct dummy_ipc_log_context dummy_context;
+
 #if defined(CONFIG_IPC_LOGGING)
 /*
  * ipc_log_context_create: Create a debug log context
@@ -229,7 +235,7 @@ int ipc_log_context_destroy(void *ctxt);
 
 static inline void *ipc_log_context_create(int max_num_pages,
 	const char *modname, uint16_t user_version)
-{ return NULL; }
+{ return &dummy_context; }
 
 static inline void msg_encode_start(struct encode_context *ectxt,
 	uint32_t type) { }
