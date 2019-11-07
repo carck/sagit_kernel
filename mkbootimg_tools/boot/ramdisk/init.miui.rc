@@ -126,6 +126,7 @@ service mcd_service /system/bin/mcd
 on property:sys.boot_completed=1
     start mcd_service
     start miui-post-boot
+    mount nullfs none /data/media/0/MIUI/debug_log/
 
 service mdb_svc  /system/xbin/mdb_svc
     class late_start
