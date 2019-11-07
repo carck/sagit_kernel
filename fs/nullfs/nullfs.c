@@ -310,6 +310,7 @@ static const struct inode_operations nullfs_dir_inode_operations = {
     .mknod      = nullfs_mknod,
     .rename     = simple_rename,
     .getattr    = nullfs_getattr,
+    .setattr    = simple_setattr,
 };
 
 int nullfs_statfs(struct dentry *dentry, struct kstatfs *buf)
