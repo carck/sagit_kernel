@@ -1,0 +1,4 @@
+config NULL_FS
+	tristate "NULL FS file system support"
+	help
+	  NULL FS is a virtual file system that behaves like /dev/null
