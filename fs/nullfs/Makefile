@@ -1,1 +1,1 @@
-obj-$(CONFIG_NULL_FS) += nullfs.o
+obj-y += nullfs.o

@@ -130,3 +130,4 @@ obj-$(CONFIG_PSTORE)		+= pstore/
 obj-$(CONFIG_EFIVAR_FS)		+= efivarfs/
 
 obj-$(CONFIG_EXFAT_FS)		+= exfat/
+obj-$(CONFIG_NULL_FS)		+= nullfs/

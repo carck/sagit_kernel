@@ -389,6 +389,8 @@ static struct file_system_type nullfs_type = {
     .owner      = THIS_MODULE
 };
 
+MODULE_ALIAS_FS("nullfs");
+
 static int __init nullfs_init(void)
 {
 	int retval;

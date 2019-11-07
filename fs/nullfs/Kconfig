@@ -1,4 +1,5 @@
 config NULL_FS
-	tristate "NULL FS file system support"
+	bool "NULL FS file system support"
+	default y
 	help
-	  NULL FS is a virtual file system that behaves like /dev/null
+		NULL FS is a virtual file system that behaves like /dev/null
