@@ -420,7 +420,7 @@ static struct platform_driver msm_system_stats_driver = {
 	},
 };
 
-static u32 debug_sysstats = 1;
+static u32 debug_sysstats = 0;
 static void msm_sysstats_resume(void)
 {
 	struct msm_rpm_stats_data rs;

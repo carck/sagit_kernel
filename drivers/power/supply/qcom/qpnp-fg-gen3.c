@@ -392,7 +392,7 @@ static struct fg_alg_flag pmi8998_v2_alg_flags[] = {
 	},
 };
 
-static int fg_gen3_debug_mask = FG_IRQ | FG_STATUS;
+static int fg_gen3_debug_mask = 0;
 module_param_named(
 	debug_mask, fg_gen3_debug_mask, int, S_IRUSR | S_IWUSR
 );
@@ -5351,7 +5351,7 @@ static void soc_work_fn(struct work_struct *work)
 
 	cycle_count = fg_get_cycle_count(chip);
 
-	pr_info("adjust_soc: s %d r %d i %d v %d t %d cc %d m 0x%02x\n",
+	pr_debug("adjust_soc: s %d r %d i %d v %d t %d cc %d m 0x%02x\n",
 			soc, esr_uohms, curr_ua, volt_uv, temp, cycle_count, msoc);
 
 	if (temp < 450 && chip->last_batt_temp >= 450) {
@@ -5492,7 +5492,7 @@ static void fg_battery_soc_smooth_tracking(struct fg_chip *chip)
 			power_supply_changed(chip->batt_psy);
 	}
 
-	pr_info("soc:%d, last_soc:%d, raw_soc:%d, soc_changed:%d.\n",
+	pr_debug("soc:%d, last_soc:%d, raw_soc:%d, soc_changed:%d.\n",
 			chip->param.batt_soc, last_batt_soc,
 			chip->param.batt_raw_soc, soc_changed);
 }
@@ -5521,7 +5521,7 @@ static void soc_monitor_work(struct work_struct *work)
 	if (chip->soc_reporting_ready)
 		fg_battery_soc_smooth_tracking(chip);
 
-	pr_info("soc:%d, raw_soc:%d, c:%d, s:%d\n",
+	pr_debug("soc:%d, raw_soc:%d, c:%d, s:%d\n",
 			chip->param.batt_soc, chip->param.batt_raw_soc,
 			chip->param.batt_ma, chip->charge_status);
 
@@ -5730,8 +5730,8 @@ static int fg_gen3_probe(struct platform_device *pdev)
 	schedule_delayed_work(&chip->soc_work, 0);
 
 	chip->param.batt_soc = -EINVAL;
-	schedule_delayed_work(&chip->soc_monitor_work,
-			msecs_to_jiffies(MONITOR_SOC_WAIT_MS));
+	//schedule_delayed_work(&chip->soc_monitor_work,
+	//		msecs_to_jiffies(MONITOR_SOC_WAIT_MS));
 
 	pr_debug("FG GEN3 driver probed successfully\n");
 	return 0;

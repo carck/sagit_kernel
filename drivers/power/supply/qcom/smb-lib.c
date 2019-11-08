@@ -630,131 +630,6 @@ static void smblib_rerun_apsd(struct smb_charger *chg)
 }
 
 #define PERIPHERAL_MASK         0xFF
-static u16 peripheral_base;
-static char log[256] = "";
-static char version[8] = "smb:01:";
-static inline void dump_reg(struct smb_charger *chg, u16 addr,
-							const char *name)
-{
-	u8 reg;
-	int rc;
-	char reg_data[50] = "";
-
-	if (NULL == name) {
-		strlcat(log, "\n", sizeof(log));
-		printk(log);
-		return;
-	}
-
-	rc = smblib_read(chg, addr, &reg);
-	if (rc < 0)
-		smblib_err(chg, "Couldn't read OTG status rc=%d\n", rc);
-	/* print one peripheral base registers in one line */
-	if (peripheral_base != (addr & ~PERIPHERAL_MASK)) {
-		peripheral_base = addr & ~PERIPHERAL_MASK;
-		memset(log, 0, sizeof(log));
-		snprintf(reg_data, sizeof(reg_data), "%s%04x ", version, peripheral_base);
-		strlcat(log, reg_data, sizeof(log));
-	}
-	memset(reg_data, 0, sizeof(reg_data));
-	snprintf(reg_data, sizeof(reg_data), "%02x ", reg);
-	strlcat(log, reg_data, sizeof(log));
-
-	smblib_dbg(chg, PR_REGISTER, "%s - %04X = %02X\n",
-							name, addr, reg);
-}
-
-static void dump_regs(struct smb_charger *chg)
-{
-	u16 addr;
-
-	/* charger peripheral */
-	for (addr = 0x6; addr <= 0xE; addr++)
-		dump_reg(chg, CHGR_BASE + addr, "CHGR Status");
-
-	for (addr = 0x10; addr <= 0x1B; addr++)
-		dump_reg(chg, CHGR_BASE + addr, "CHGR INT");
-
-	for (addr = 0x50; addr <= 0x70; addr++)
-		dump_reg(chg, CHGR_BASE + addr, "CHGR Config");
-
-	dump_reg(chg, CHGR_BASE + addr, NULL);
-
-	for (addr = 0x6; addr <= 0x8; addr++)
-		dump_reg(chg, OTG_BASE + addr, "OTG Status");
-
-	for (addr = 0x9; addr <= 0x1B; addr++)
-		dump_reg(chg, OTG_BASE + addr, "OTG INT");
-
-	for (addr = 0x40; addr <= 0x53; addr++)
-		dump_reg(chg, OTG_BASE + addr, "OTG Config");
-
-	dump_reg(chg, OTG_BASE + addr, NULL);
-
-	for (addr = 0x10; addr <= 0x1B; addr++)
-		dump_reg(chg, BATIF_BASE + addr, "BATIF INT");
-
-	for (addr = 0x50; addr <= 0x52; addr++)
-		dump_reg(chg, BATIF_BASE + addr, "BATIF Config");
-
-	for (addr = 0x60; addr <= 0x62; addr++)
-		dump_reg(chg, BATIF_BASE + addr, "BATIF Config");
-
-	for (addr = 0x70; addr <= 0x71; addr++)
-		dump_reg(chg, BATIF_BASE + addr, "BATIF Config");
-
-	dump_reg(chg, BATIF_BASE + addr, NULL);
-
-	for (addr = 0x6; addr <= 0x10; addr++)
-		dump_reg(chg, USBIN_BASE + addr, "USBIN Status");
-
-	for (addr = 0x12; addr <= 0x19; addr++)
-		dump_reg(chg, USBIN_BASE + addr, "USBIN INT ");
-
-	for (addr = 0x40; addr <= 0x43; addr++)
-		dump_reg(chg, USBIN_BASE + addr, "USBIN Cmd ");
-
-	for (addr = 0x58; addr <= 0x70; addr++)
-		dump_reg(chg, USBIN_BASE + addr, "USBIN Config ");
-
-	for (addr = 0x80; addr <= 0x84; addr++)
-		dump_reg(chg, USBIN_BASE + addr, "USBIN Config ");
-
-	dump_reg(chg, USBIN_BASE + addr, NULL);
-
-	for (addr = 0x6; addr <= 0x10; addr++)
-		dump_reg(chg, MISC_BASE + addr, "MISC Status");
-
-	for (addr = 0x15; addr <= 0x1B; addr++)
-		dump_reg(chg, MISC_BASE + addr, "MISC INT");
-
-	for (addr = 0x51; addr <= 0x62; addr++)
-		dump_reg(chg, MISC_BASE + addr, "MISC Config");
-
-	for (addr = 0x70; addr <= 0x76; addr++)
-		dump_reg(chg, MISC_BASE + addr, "MISC Config");
-
-	for (addr = 0x80; addr <= 0x84; addr++)
-		dump_reg(chg, MISC_BASE + addr, "MISC Config");
-
-	for (addr = 0x90; addr <= 0x94; addr++)
-		dump_reg(chg, MISC_BASE + addr, "MISC Config");
-
-	dump_reg(chg, MISC_BASE + addr, NULL);
-
-	for (addr = 0x10; addr <= 0x1A; addr++)
-		dump_reg(chg, 0x1700 + addr, "PDPHY INT");
-
-	for (addr = 0x40; addr <= 0x48; addr++)
-		dump_reg(chg, 0x1700 + addr, "PDPHY INT");
-
-	for (addr = 0x4A; addr <= 0x4C; addr++)
-		dump_reg(chg, 0x1700 + addr, "PDPHY Config");
-
-	dump_reg(chg, 0x1700 + 0x58, "PDPHY Ctrl");
-
-	dump_reg(chg, 0x1700 + addr, NULL);
-}
 
 static const struct apsd_result *smblib_update_usb_type(struct smb_charger *chg)
 {
@@ -5446,7 +5321,6 @@ static void smblib_reg_work(struct work_struct *work)
 	int main_fcc, parallel_fcc, parallel_charging_enable, connector_health;
 	int charge_type, typec_mode, typec_orientation;
 
-	dump_regs(chg);
 	rc = smblib_get_prop_usb_present(chg, &val);
 	if (rc < 0) {
 		pr_err("Couldn't get usb present rc=%d\n", rc);
