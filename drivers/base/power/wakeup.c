@@ -550,55 +550,19 @@ static void wakeup_source_activate(struct wakeup_source *ws)
 	trace_wakeup_source_activate(ws->name, cec);
 }
 
-static const char* blocked_ws[] = {
-	"IPA_WS",
-	"wlan_extscan_wl",
-	"qcom_rx_wakelock",
-	"wlan",
-	"[timerfd]",
-	"NETLINK",
-	"netmgr_wl",
-	"wlan_wow_wl",
-	"alarmtimer"
-};
-
-static void wakeup_source_deactivate(struct wakeup_source *ws);
-static bool wakeup_source_blocker(struct wakeup_source *ws)
-{
-	unsigned int i;
-	unsigned int wslen = 0;
-
-	if (ws && ws->name) {
-		wslen = strlen(ws->name);
-
-		for(i = 0; i < ARRAY_SIZE(blocked_ws); i++) {
-			if (!strncmp(ws->name, blocked_ws[i], wslen)) {
-				if (ws->active) {
-					wakeup_source_deactivate(ws);
-					pr_info("forcefully deactivate wakeup source: %s\n", ws->name);
-				}
-				return true;
-			}
-		}
-	}
-	return false;
-}
-
 /**
  * wakeup_source_report_event - Report wakeup event using the given source.
  * @ws: Wakeup source to report the event for.
  */
 static void wakeup_source_report_event(struct wakeup_source *ws)
 {
-	if (!wakeup_source_blocker(ws)) {
-		ws->event_count++;
-		/* This is racy, but the counter is approximate anyway. */
-		if (events_check_enabled)
-			ws->wakeup_count++;
+	ws->event_count++;
+	/* This is racy, but the counter is approximate anyway. */
+	if (events_check_enabled)
+		ws->wakeup_count++;
 
-		if (!ws->active)
-			wakeup_source_activate(ws);
-	}
+	if (!ws->active)
+		wakeup_source_activate(ws);
 }
 
 /**
@@ -886,8 +850,7 @@ void pm_print_active_wakeup_sources(void)
 	list_for_each_entry_rcu(ws, &wakeup_sources, entry) {
 		if (ws->active) {
 			pr_info("active wakeup source: %s\n", ws->name);
-			if (!wakeup_source_blocker(ws))
-				active = 1;
+			active = 1;
 		} else if (!active &&
 			   (!last_activity_ws ||
 			    ktime_to_ns(ws->last_time) >
