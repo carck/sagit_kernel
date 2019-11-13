@@ -3033,7 +3033,7 @@ enum tfa_error tfa_start(int next_profile, int *vstep)
 	}
 
 	for (dev = 0; dev < devcount; dev++) {
-		pr_info("tfa_start()    dev=%d    will perform tfaContOpen()\n", dev);
+		pr_debug("tfa_start()    dev=%d    will perform tfaContOpen()\n", dev);
 		err = tfaContOpen(dev);
 		if (err != Tfa98xx_Error_Ok) {
 			pr_err("tfa_start()	   tfaContOpen error(%d)\n", err);
@@ -3042,7 +3042,7 @@ enum tfa_error tfa_start(int next_profile, int *vstep)
 
 		/* Get currentprofile */
 		active_profile = tfa_get_swprof(dev);
-		pr_info("tfa_start()	   tfa_get_swprof active_profile(%d)\n", active_profile);
+		pr_debug("tfa_start()	   tfa_get_swprof active_profile(%d)\n", active_profile);
 		if (active_profile == 0xff)
 			active_profile = -1;
 
@@ -3050,7 +3050,7 @@ enum tfa_error tfa_start(int next_profile, int *vstep)
 		 * Only if the user did not give a specific profile and coldstart
 		 */
 		if (active_profile == -1 && next_profile < 1) {
-			pr_info("tfa_start()    will perform tfaContGetCalProfile()\n");
+			pr_debug("tfa_start()    will perform tfaContGetCalProfile()\n");
 			cal_profile = tfaContGetCalProfile(dev);
 			if (cal_profile >= 0)
 				next_profile = cal_profile;
@@ -3071,7 +3071,7 @@ enum tfa_error tfa_start(int next_profile, int *vstep)
 		}
 
 		/* enable I2S output on TFA1 devices without TDM */
-		pr_info("tfa_start()    will perform tfa98xx_aec_output()\n");
+		pr_debug("tfa_start()    will perform tfa98xx_aec_output()\n");
 		err = tfa98xx_aec_output(dev, 1);
 		if (err != Tfa98xx_Error_Ok) {
 			pr_err("tfa_start()	   tfa98xx_aec_output error(%d)\n", err);
@@ -3080,7 +3080,7 @@ enum tfa_error tfa_start(int next_profile, int *vstep)
 		tfa98xx_dump_register(getHandle(dev), 2, "tfa_start after tfa98xx_aec_output");
 
 		/* Check if we need coldstart or ACS is set */
-		pr_info("tfa_start()    will perform tfaRunSpeakerBoost()\n");
+		pr_debug("tfa_start()    will perform tfaRunSpeakerBoost()\n");
 		err = tfaRunSpeakerBoost(dev, 0, next_profile);
 		show_current_state(dev);
 		if (err != Tfa98xx_Error_Ok) {
@@ -3103,7 +3103,7 @@ enum tfa_error tfa_start(int next_profile, int *vstep)
 		if ((next_profile != active_profile && active_profile != -1)
 		       || (istap_prof == 1)) {
 			tfa98xx_dump_register(getHandle(dev), 2, "tfa_start before tfaContWriteProfile");
-			pr_info("tfa_start()	will perform tfaContWriteProfile()\n");
+			pr_debug("tfa_start()	will perform tfaContWriteProfile()\n");
 			err = tfaContWriteProfile(dev, next_profile, vstep[dev]);
 			if (err != Tfa98xx_Error_Ok) {
 				pr_err("tfa_start()	   tfaContWriteProfile error(%d)\n", err);
@@ -3111,7 +3111,7 @@ enum tfa_error tfa_start(int next_profile, int *vstep)
 			}
 		}
 
-		pr_info("tfa_start()	after performed tfaContWriteProfile()\n");
+		pr_debug("tfa_start()	after performed tfaContWriteProfile()\n");
 		/* If the profile contains the .standby suffix go to powerdown
 		 * else we should be in operating state
 		 */

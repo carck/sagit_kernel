@@ -855,7 +855,7 @@ int apr_deregister(void *handle)
 	dest_id = svc->dest_id;
 	client_id = svc->client_id;
 	clnt = &client[dest_id][client_id];
-	pr_err("%s: clnt = %p, svc->dest_id = %d, svc->client_id = %d, svc->id = %d\n",
+	pr_debug("%s: clnt = %p, svc->dest_id = %d, svc->client_id = %d, svc->id = %d\n",
 		__func__, clnt,	svc->dest_id, svc->client_id, svc->id);
 
 	if (dest_id == APR_DEST_QDSP6) {
@@ -867,12 +867,12 @@ int apr_deregister(void *handle)
 	}
 	for (i = 0; i < size; i++) {
 		if (svc->id == tbl[i].id) {
-			pr_err("%s: svc_name = %s\n", __func__, tbl[i].name);
+			pr_debug("%s: svc_name = %s\n", __func__, tbl[i].name);
 			break;
 		}
 	}
 
-	pr_err("%s: client[dest_id][client_id].svc_cnt = %d, svc->port_cnt = %d, svc->svc_cnt = %d\n",
+	pr_debug("%s: client[dest_id][client_id].svc_cnt = %d, svc->port_cnt = %d, svc->svc_cnt = %d\n",
 		__func__, client[dest_id][client_id].svc_cnt,
 		svc->port_cnt, svc->svc_cnt);
 
@@ -895,7 +895,7 @@ int apr_deregister(void *handle)
 		svc->client_id = 0;
 		svc->need_reset = 0x0;
 	}
-	pr_err("%s: client[dest_id][client_id].handle = %p, client[dest_id][client_id].svc_cnt = %d\n",
+	pr_debug("%s: client[dest_id][client_id].handle = %p, client[dest_id][client_id].svc_cnt = %d\n",
 		__func__, client[dest_id][client_id].handle, client[dest_id][client_id].svc_cnt);
 	if (client[dest_id][client_id].handle &&
 	    !client[dest_id][client_id].svc_cnt) {
