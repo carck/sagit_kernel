@@ -2,8 +2,6 @@ ccflags-y := -I$(src) -Wall -Werror
 IO_MODULE := msm
 MIXER_MODULE := test
 
-EXTRA_CFLAGS += -DDEBUG
-
 obj-y += elliptic.o io_modules/$(IO_MODULE)/elliptic_data_io.o elliptic_sysfs.o
 # elliptic_driver-y := elliptic.o
 # elliptic_driver-y += io_modules/$(IO_MODULE)/elliptic_data_io.o
