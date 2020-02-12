@@ -1,0 +1,21 @@
+name: C/C++ CI
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: prepare boot
+      run: cd mkbootimg_tools && rm -rf boot && ./mkboot boot.img boot
+    - name: clean boot
+      run: git reset --hard
+    - name: make
+      run: bash build-kernel.sh
+    - name: Upload artifact
+      uses: actions/upload-artifact@v1.0.0
+      with:
+        name: V1.6
+        path: READY-KERNEL/
