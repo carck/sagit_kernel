@@ -93,6 +93,8 @@ typedef int (qdf_abstract_print)(void *priv, const char *fmt, ...);
 
 #endif
 
+#define NO_SESSION 0xFF
+
 /**
  * typedef struct qdf_trace_record_s - keep trace record
  * @qtime: qtimer ticks
