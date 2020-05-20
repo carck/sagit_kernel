@@ -25,7 +25,7 @@ BUILD_NOW()
 	if [ -e "$KERNELDIR"/mkbootimg_tools/$MODEL/kernel ]; then
 		rm "$KERNELDIR"/mkbootimg_tools/$MODEL/kernel;
 	fi;
-	if [ -e "$KERNELDIR"/mkbootimg_tools/$MODEL/ramdisk/crk_modules/wlan.ko ]; then
+	if [ -e "$KERNELDIR"/sagit_wlan_magisk/system/vendor/lib/modules/qca_cld3_wlan.ko ]; then
 		rm "$KERNELDIR"/mkbootimg_tools/$MODEL/ramdisk/crk_modules/*.ko;
 	fi;
 	if [ -e "$KERNELDIR"/arch/arm64/boot/Image.gz-dtb ]; then
@@ -89,7 +89,7 @@ BUILD_NOW()
 
 		for i in $(find "$KERNELDIR" -name '*.ko'); do
 			$STRIP -g "$i"
-			cp -av "$i" "$KERNELDIR"/mkbootimg_tools/$MODEL/ramdisk/crk_modules/;
+			cp -av "$i" "$KERNELDIR"/sagit_wlan_magisk/system/vendor/lib/modules/;
 		done;
 
 		chmod 644 "$KERNELDIR"/mkbootimg_tools/$MODEL/ramdisk/crk_modules/*.ko
@@ -110,10 +110,6 @@ BUILD_NOW()
 		mv "$KERNELDIR"/magisk/new-boot.img "$KERNELDIR"/READY-KERNEL/boot.img;
 		popd;
 
-		#cp "$KERNELDIR"/mkbootimg_tools/boot2.img "$KERNELDIR"/READY-KERNEL/boot.img
-		#cd "$KERNELDIR"/READY-KERNEL;
-		#zip -r Kernel-SAGIT-T-"$(date +"[%H-%M]-[%d-%m]-N")".zip * >/dev/null
-		#mv *.zip "$KERNELDIR"/
 
 		echo "Cleaning";
 		rm "$KERNELDIR"/arch/arm64/boot/Image.gz-dtb;

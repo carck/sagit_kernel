@@ -19,3 +19,8 @@ jobs:
       with:
         name: V1.6
         path: READY-KERNEL/
+    - name: Upload module artifact
+      uses: actions/upload-artifact@v1.0.0
+      with:
+        name: modules
+        path: sagit_wlan_magisk/
