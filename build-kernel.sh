@@ -25,12 +25,6 @@ BUILD_NOW()
 	if [ -e "$KERNELDIR"/mkbootimg_tools/$MODEL/kernel ]; then
 		rm "$KERNELDIR"/mkbootimg_tools/$MODEL/kernel;
 	fi;
-	if [ -e "$KERNELDIR"/sagit_wlan_magisk/system/vendor/lib/modules/qca_cld3_wlan.ko ]; then
-		rm "$KERNELDIR"/mkbootimg_tools/$MODEL/ramdisk/crk_modules/*.ko;
-	fi;
-	if [ -e "$KERNELDIR"/arch/arm64/boot/Image.gz-dtb ]; then
-		rm "$KERNELDIR"/arch/arm64/boot/Image.gz-dtb;
-	fi;
 
 	if [ -e "$KERNELDIR"/READY-KERNEL/boot.img ]; then
 		rm "$KERNELDIR"/READY-KERNEL/boot.img;
@@ -53,11 +47,6 @@ BUILD_NOW()
 		echo "Python2 is used! all good, building!";
 	fi;
 
-	# remove all old modules before compile
-	for i in $(find "$KERNELDIR"/ -name "*.ko"); do
-		rm -f "$i";
-	done;
-
 	# Idea by savoca
 	NR_CPUS=$(grep -c ^processor /proc/cpuinfo)
 
@@ -67,6 +56,8 @@ BUILD_NOW()
 	else
 		echo "Building kernel with $NR_CPUS CPU threads";
 	fi;
+
+	time make clean
 
 	# build config
 	time make ARCH=arm64 sagit_user_defconfig
@@ -129,12 +120,3 @@ BUILD_NOW()
 
 
 BUILD_NOW "boot";
-
-#./sepolicy-inject -s system_server -t rootfs -c system -p module_load -P sepolicy
-#./sepolicy-inject -s shell -t rootfs -c file -p getattr -P sepolicy
-#./sepolicy-inject -s mt_daemon -t rootfs -c dir -p read -P sepolicy2
-#./sepolicy-inject -s mt_daemon -t rootfs -c lnk_file -p getattr -P sepolicy
-#./sepolicy-inject -s mt_daemon -t storage_file -c dir -p getattr -P sepolicy
-#./sepolicy-inject -s mt_daemon -t adsprpcd_file -c dir -p getattr -P sepolicy
-#./sepolicy-inject -s mt_daemon -t cache_file -c dir -p getattr -P sepolicy
-#./sepolicy-inject -s mt_daemon -t tmpfs -c dir -p search -P sepolicy2
