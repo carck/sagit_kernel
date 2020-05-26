@@ -84,13 +84,9 @@ typedef int (qdf_abstract_print)(void *priv, const char *fmt, ...);
 
 
 #ifdef TRACE_RECORD
-
 #define MTRACE(p) p
-#define NO_SESSION 0xFF
-
 #else
 #define MTRACE(p) {  }
-
 #endif
 
 #define NO_SESSION 0xFF
