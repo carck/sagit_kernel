@@ -6,7 +6,6 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
-#include <linux/sched.h>
 #include "hashtab.h"
 
 struct hashtab *hashtab_create(u32 size)
@@ -32,69 +31,22 @@ struct hashtab *hashtab_create(u32 size)
 	return p;
 }
 
-int hashtab_insert(struct hashtab *h, void *key, void *datum,
-					struct hashtab_key_params key_params)
+int __hashtab_insert(struct hashtab *h, struct hashtab_node **dst,
+		     void *key, void *datum)
 {
-	u32 hvalue;
-	struct hashtab_node *prev, *cur, *newnode;
-
-	cond_resched();
-
-	if (!h || h->nel == HASHTAB_MAX_NODES)
-		return -EINVAL;
-
-	hvalue = key_params.hash(key) & (h->size - 1);
-	prev = NULL;
-	cur = h->htable[hvalue];
-	while (cur) {
-		int cmp = key_params.cmp(key, cur->key);
-
-		if (cmp == 0)
-			return -EEXIST;
-		if (cmp < 0)
-			break;
-		prev = cur;
-		cur = cur->next;
-	}
+	struct hashtab_node *newnode;
 
 	newnode = kzalloc(sizeof(*newnode), GFP_KERNEL);
 	if (newnode == NULL)
 		return -ENOMEM;
 	newnode->key = key;
 	newnode->datum = datum;
-	if (prev) {
-		newnode->next = prev->next;
-		prev->next = newnode;
-	} else {
-		newnode->next = h->htable[hvalue];
-		h->htable[hvalue] = newnode;
-	}
+	
+	newnode->next = *dst;
+	*dst = newnode;
 
 	h->nel++;
 	return 0;
-}
-
-void *hashtab_search(struct hashtab *h, const void *key,
-					struct hashtab_key_params key_params)
-{
-	u32 hvalue;
-	struct hashtab_node *cur;
-
-	if (!h)
-		return NULL;
-
-	hvalue = key_params.hash(key) & (h->size - 1);
-	cur = h->htable[hvalue];
-	while (cur) {
-		int cmp = key_params.cmp(key, cur->key);
-
-		if (cmp == 0)
-			return cur->datum;
-		if (cmp < 0)
-			break;
-		cur = cur->next;
-	}
-	return NULL;
 }
 
 void hashtab_destroy(struct hashtab *h)
