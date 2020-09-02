@@ -1353,7 +1353,7 @@ static int string_to_context_struct(struct policydb *pol,
 
 	*p++ = 0;
 
-	usrdatum = hashtab_search(pol->p_users.table, scontextp);
+	usrdatum = symtab_search(&pol->p_users, scontextp);
 	if (!usrdatum)
 		goto out;
 
@@ -1369,7 +1369,7 @@ static int string_to_context_struct(struct policydb *pol,
 
 	*p++ = 0;
 
-	role = hashtab_search(pol->p_roles.table, scontextp);
+	role = symtab_search(&pol->p_roles, scontextp);
 	if (!role)
 		goto out;
 	ctx->role = role->value;
@@ -1381,7 +1381,7 @@ static int string_to_context_struct(struct policydb *pol,
 	oldc = *p;
 	*p++ = 0;
 
-	typdatum = hashtab_search(pol->p_types.table, scontextp);
+	typdatum = symtab_search(&pol->p_types, scontextp);
 	if (!typdatum || typdatum->attribute)
 		goto out;
 
@@ -1922,7 +1922,7 @@ static int convert_context(u32 key,
 
 	/* Convert the user. */
 	rc = -EINVAL;
-	usrdatum = hashtab_search(args->newp->p_users.table,
+	usrdatum = symtab_search(&args->newp->p_users,
 				  sym_name(args->oldp, SYM_USERS, c->user - 1));
 	if (!usrdatum)
 		goto bad;
@@ -1930,7 +1930,7 @@ static int convert_context(u32 key,
 
 	/* Convert the role. */
 	rc = -EINVAL;
-	role = hashtab_search(args->newp->p_roles.table,
+	role = symtab_search(&args->newp->p_roles,
 			      sym_name(args->oldp, SYM_ROLES, c->role - 1));
 	if (!role)
 		goto bad;
@@ -1938,7 +1938,7 @@ static int convert_context(u32 key,
 
 	/* Convert the type. */
 	rc = -EINVAL;
-	typdatum = hashtab_search(args->newp->p_types.table,
+	typdatum = symtab_search(&args->newp->p_types,
 				  sym_name(args->oldp, SYM_TYPES, c->type - 1));
 	if (!typdatum)
 		goto bad;
@@ -2403,7 +2403,7 @@ int security_get_user_sids(u32 fromsid,
 		goto out_unlock;
 
 	rc = -EINVAL;
-	user = hashtab_search(policydb.p_users.table, username);
+	user = symtab_search(&policydb.p_users, username);
 	if (!user)
 		goto out_unlock;
 
@@ -2727,7 +2727,7 @@ static int security_preserve_bools(struct policydb *p)
 	if (rc)
 		goto out;
 	for (i = 0; i < nbools; i++) {
-		booldatum = hashtab_search(p->p_bools.table, bnames[i]);
+		booldatum = symtab_search(&p->p_bools, bnames[i]);
 		if (booldatum)
 			booldatum->state = bvalues[i];
 	}
@@ -2962,7 +2962,7 @@ int security_get_permissions(char *class, char ***perms, int *nperms)
 	read_lock(&policy_rwlock);
 
 	rc = -EINVAL;
-	match = hashtab_search(policydb.p_classes.table, class);
+	match = symtab_search(&policydb.p_classes, class);
 	if (!match) {
 		printk(KERN_ERR "SELinux: %s:  unrecognized class %s\n",
 			__func__, class);
@@ -3097,7 +3097,7 @@ int selinux_audit_rule_init(u32 field, u32 op, char *rulestr, void **vrule)
 	case AUDIT_SUBJ_USER:
 	case AUDIT_OBJ_USER:
 		rc = -EINVAL;
-		userdatum = hashtab_search(policydb.p_users.table, rulestr);
+		userdatum = symtab_search(&policydb.p_users, rulestr);
 		if (!userdatum)
 			goto out;
 		tmprule->au_ctxt.user = userdatum->value;
@@ -3105,7 +3105,7 @@ int selinux_audit_rule_init(u32 field, u32 op, char *rulestr, void **vrule)
 	case AUDIT_SUBJ_ROLE:
 	case AUDIT_OBJ_ROLE:
 		rc = -EINVAL;
-		roledatum = hashtab_search(policydb.p_roles.table, rulestr);
+		roledatum = symtab_search(&policydb.p_roles, rulestr);
 		if (!roledatum)
 			goto out;
 		tmprule->au_ctxt.role = roledatum->value;
@@ -3113,7 +3113,7 @@ int selinux_audit_rule_init(u32 field, u32 op, char *rulestr, void **vrule)
 	case AUDIT_SUBJ_TYPE:
 	case AUDIT_OBJ_TYPE:
 		rc = -EINVAL;
-		typedatum = hashtab_search(policydb.p_types.table, rulestr);
+		typedatum = symtab_search(&policydb.p_types, rulestr);
 		if (!typedatum)
 			goto out;
 		tmprule->au_ctxt.type = typedatum->value;

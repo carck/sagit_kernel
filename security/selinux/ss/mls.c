@@ -163,7 +163,7 @@ int mls_level_isvalid(struct policydb *p, struct mls_level *l)
 
 	if (!l->sens || l->sens > p->p_levels.nprim)
 		return 0;
-	levdatum = hashtab_search(p->p_levels.table,
+	levdatum = symtab_search(&p->p_levels,
 				  sym_name(p, SYM_LEVELS, l->sens - 1));
 	if (!levdatum)
 		return 0;
@@ -279,7 +279,7 @@ int mls_context_to_sid(struct policydb *pol,
 		*p++ = '\0';
 
 	for (l = 0; l < 2; l++) {
-		levdatum = hashtab_search(pol->p_levels.table, scontextp);
+		levdatum = symtab_search(&pol->p_levels, scontextp);
 		if (!levdatum) {
 			rc = -EINVAL;
 			goto out;
@@ -304,7 +304,7 @@ int mls_context_to_sid(struct policydb *pol,
 					*rngptr++ = '\0';
 				}
 
-				catdatum = hashtab_search(pol->p_cats.table,
+				catdatum = symtab_search(&pol->p_cats,
 							  scontextp);
 				if (!catdatum) {
 					rc = -EINVAL;
@@ -320,7 +320,7 @@ int mls_context_to_sid(struct policydb *pol,
 				if (rngptr) {
 					int i;
 
-					rngdatum = hashtab_search(pol->p_cats.table, rngptr);
+					rngdatum = symtab_search(&pol->p_cats, rngptr);
 					if (!rngdatum) {
 						rc = -EINVAL;
 						goto out;
@@ -473,7 +473,7 @@ int mls_convert_context(struct policydb *oldp,
 		return 0;
 
 	for (l = 0; l < 2; l++) {
-		levdatum = hashtab_search(newp->p_levels.table,
+		levdatum = symtab_search(&newp->p_levels,
 					  sym_name(oldp, SYM_LEVELS,
 						   c->range.level[l].sens - 1));
 
@@ -485,7 +485,7 @@ int mls_convert_context(struct policydb *oldp,
 		ebitmap_for_each_positive_bit(&c->range.level[l].cat, node, i) {
 			int rc;
 
-			catdatum = hashtab_search(newp->p_cats.table,
+			catdatum = symtab_search(&newp->p_cats,
 						  sym_name(oldp, SYM_CATS, i));
 			if (!catdatum)
 				return -EINVAL;
