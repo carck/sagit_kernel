@@ -1572,7 +1572,7 @@ static void filename_compute_type(struct policydb *p, struct context *newcontext
 	ft.tclass = tclass;
 	ft.name = objname;
 
-	otype = hashtab_search(p->filename_trans, &ft);
+	otype = policydb_filenametr_search(p, &ft);
 	if (otype)
 		newcontext->type = otype->otype;
 }

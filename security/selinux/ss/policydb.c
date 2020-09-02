@@ -204,7 +204,7 @@ out:
 	return rc;
 }
 
-static u32 filenametr_hash(struct hashtab *h, const void *k)
+static u32 filenametr_hash(const void *k)
 {
 	const struct filename_trans *ft = k;
 	unsigned long hash;
@@ -216,10 +216,10 @@ static u32 filenametr_hash(struct hashtab *h, const void *k)
 	byte_num = 0;
 	while ((focus = ft->name[byte_num++]))
 		hash = partial_name_hash(focus, hash);
-	return hash & (h->size - 1);
+	return hash;
 }
 
-static int filenametr_cmp(struct hashtab *h, const void *k1, const void *k2)
+static int filenametr_cmp(const void *k1, const void *k2)
 {
 	const struct filename_trans *ft1 = k1;
 	const struct filename_trans *ft2 = k2;
@@ -241,14 +241,25 @@ static int filenametr_cmp(struct hashtab *h, const void *k1, const void *k2)
 
 }
 
-static u32 rangetr_hash(struct hashtab *h, const void *k)
+static const struct hashtab_key_params filenametr_key_params = {
+	.hash = filenametr_hash,
+	.cmp = filenametr_cmp,
+};
+
+struct filename_trans_datum *policydb_filenametr_search(
+	struct policydb *p, struct filename_trans *key)
+{
+	return hashtab_search(p->filename_trans, key, filenametr_key_params);
+}
+
+static u32 rangetr_hash(const void *k)
 {
 	const struct range_trans *key = k;
 	return (key->source_type + (key->target_type << 3) +
-		(key->target_class << 5)) & (h->size - 1);
+		(key->target_class << 5));
 }
 
-static int rangetr_cmp(struct hashtab *h, const void *k1, const void *k2)
+static int rangetr_cmp(const void *k1, const void *k2)
 {
 	const struct range_trans *key1 = k1, *key2 = k2;
 	int v;
@@ -265,6 +276,18 @@ static int rangetr_cmp(struct hashtab *h, const void *k1, const void *k2)
 
 	return v;
 }
+
+static const struct hashtab_key_params rangetr_key_params = {
+	.hash = rangetr_hash,
+	.cmp = rangetr_cmp,
+};
+
+struct mls_range *policydb_rangetr_search(struct policydb *p,
+					  struct range_trans *key)
+{
+	return hashtab_search(p->range_tr, key, rangetr_key_params);
+}
+
 
 /*
  * Initialize a policy database structure.
@@ -293,13 +316,13 @@ static int policydb_init(struct policydb *p)
 	if (rc)
 		goto out;
 
-	p->filename_trans = hashtab_create(filenametr_hash, filenametr_cmp, (1 << 10));
+	p->filename_trans = hashtab_create((1 << 10));
 	if (!p->filename_trans) {
 		rc = -ENOMEM;
 		goto out;
 	}
 
-	p->range_tr = hashtab_create(rangetr_hash, rangetr_cmp, 256);
+	p->range_tr = hashtab_create(256);
 	if (!p->range_tr) {
 		rc = -ENOMEM;
 		goto out;
@@ -1895,7 +1918,7 @@ static int range_read(struct policydb *p, void *fp)
 			goto out;
 		}
 
-		rc = hashtab_insert(p->range_tr, rt, r);
+		rc = hashtab_insert(p->range_tr, rt, r, rangetr_key_params);
 		if (rc)
 			goto out;
 
@@ -1969,7 +1992,7 @@ static int filename_trans_read(struct policydb *p, void *fp)
 		if (rc)
 			goto out;
 
-		rc = hashtab_insert(p->filename_trans, ft, otype);
+		rc = hashtab_insert(p->filename_trans, ft, otype, filenametr_key_params);
 		if (rc) {
 			/*
 			 * Do not return -EEXIST to the caller, or the system
