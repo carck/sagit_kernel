@@ -337,6 +337,7 @@ static unsigned long get_extent(enum pgt_entry entry, unsigned long old_addr,
  * pgt_entry. Returns true if the move was successful, else false.
  */
 static bool move_pgt_entry(enum pgt_entry entry, struct vm_area_struct *vma,
+			struct vm_area_struct *new_vma,
 			unsigned long old_addr, unsigned long new_addr,
 			void *old_entry, void *new_entry, bool need_rmap_locks)
 {
@@ -357,7 +358,7 @@ static bool move_pgt_entry(enum pgt_entry entry, struct vm_area_struct *vma,
 		break;
 	case HPAGE_PMD:
 		moved = IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE) &&
-			move_huge_pmd(vma, old_addr, new_addr, old_entry,
+			move_huge_pmd(vma, new_vma, old_addr, new_addr, old_entry,
 				      new_entry);
 		break;
 	default:
@@ -400,7 +401,7 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
 			new_pud = alloc_new_pud(vma->vm_mm, vma, new_addr);
 			if (!new_pud)
 				break;
-			if (move_pgt_entry(NORMAL_PUD, vma, old_addr, new_addr,
+			if (move_pgt_entry(NORMAL_PUD, vma, new_vma, old_addr, new_addr,
 					   old_pud, new_pud, need_rmap_locks))
 				continue;
 		}
@@ -417,7 +418,7 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
 			if (extent == HPAGE_PMD_SIZE) {
 				VM_BUG_ON_VMA(vma->vm_file || !vma->anon_vma,
 					      vma);
-				err = move_pgt_entry(HPAGE_PMD, vma, old_addr, new_addr,
+				err = move_pgt_entry(HPAGE_PMD, vma, new_vma, old_addr, new_addr,
 					   old_pmd, new_pmd, need_rmap_locks);
 			}
 			if (err > 0) {
@@ -428,7 +429,7 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
 			VM_BUG_ON(pmd_trans_huge(*old_pmd));
 		} else if (IS_ENABLED(CONFIG_HAVE_MOVE_PMD) &&
 			   extent == PMD_SIZE) {
-			if (move_pgt_entry(NORMAL_PMD, vma, old_addr, new_addr,
+			if (move_pgt_entry(NORMAL_PMD, vma, new_vma, old_addr, new_addr,
 					   old_pmd, new_pmd, need_rmap_locks))
 				continue;
 		}
