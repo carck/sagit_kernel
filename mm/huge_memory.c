@@ -1514,9 +1514,7 @@ int move_huge_pmd(struct vm_area_struct *vma, struct vm_area_struct *new_vma,
 	bool force_flush = false;
 	struct mm_struct *mm = vma->vm_mm;
 
-	if ((old_addr & ~HPAGE_PMD_MASK) ||
-	    (new_addr & ~HPAGE_PMD_MASK) ||
-	    (new_vma->vm_flags & VM_NOHUGEPAGE))
+	if (new_vma->vm_flags & VM_NOHUGEPAGE)
 		goto out;
 
 	/*
