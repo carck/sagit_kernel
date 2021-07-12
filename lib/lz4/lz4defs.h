@@ -36,7 +36,17 @@
  */
 
 #include <asm/unaligned.h>
-#include <linux/string.h>	 /* memset, memcpy */
+#include <linux/string.h>	 /* memset, LZ4_memcpy */
+
+/*
+ * LZ4 relies on memcpy with a constant size being inlined. In freestanding
+ * environments, the compiler can't assume the implementation of memcpy() is
+ * standard compliant, so apply its specialized memcpy() inlining logic. When
+ * possible, use __builtin_memcpy() to tell the compiler to analyze memcpy()
+ * as-if it were standard compliant, so it can inline it in freestanding
+ * environments. This is needed when decompressing the Linux Kernel, for example.
+ */
+#define LZ4_memcpy(dst, src, size) __builtin_memcpy(dst, src, size)
 
 #define FORCE_INLINE __always_inline
 
@@ -153,7 +163,7 @@ static FORCE_INLINE void LZ4_copy8(void *dst, const void *src)
 }
 
 /*
- * customized variant of memcpy,
+ * customized variant of LZ4_memcpy,
  * which can overwrite up to 7 bytes beyond dstEnd
  */
 static FORCE_INLINE void LZ4_wildCopy(void *dstPtr,
