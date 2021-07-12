@@ -268,7 +268,7 @@ static int journal_finish_inode_data_buffers(journal_t *journal,
 
 		set_bit(__JI_COMMIT_RUNNING, &jinode->i_flags);
 		spin_unlock(&journal->j_list_lock);
-		err = filemap_fdatawait(jinode->i_vfs_inode->i_mapping, dirty_start,
+		err = filemap_fdatawait_range(jinode->i_vfs_inode->i_mapping, dirty_start,
 						dirty_end);
 		if (err) {
 			/*
