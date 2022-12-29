@@ -12,6 +12,8 @@ jobs:
       run: cd mkbootimg_tools && rm -rf boot && ./mkboot boot.img boot
     - name: clean boot
       run: git reset --hard
+    - name: python
+      run: apt install -y python2
     - name: make
       run: bash build-kernel.sh
     - name: Upload artifact
