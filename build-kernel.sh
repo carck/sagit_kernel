@@ -30,23 +30,6 @@ BUILD_NOW()
 		rm "$KERNELDIR"/READY-KERNEL/boot.img;
 	fi;
 
-	PYTHON_CHECK=$(ls -la /usr/bin/python | grep python3 | wc -l);
-	PYTHON_WAS_3=0;
-
-	if [ "$PYTHON_CHECK" -eq "1" ] && [ -e /usr/bin/python2 ]; then
-		if [ -e /usr/bin/python2 ]; then
-			rm /usr/bin/python
-			ln -s /usr/bin/python2 /usr/bin/python
-			echo "Switched to Python2 for building kernel will switch back when done";
-			PYTHON_WAS_3=1;
-		else
-			echo "You need Python2 to build this kernel. install and come back."
-			exit 1;
-		fi;
-	else
-		echo "Python2 is used! all good, building!";
-	fi;
-
 	# Idea by savoca
 	NR_CPUS=$(grep -c ^processor /proc/cpuinfo)
 
@@ -85,11 +68,6 @@ BUILD_NOW()
 
 		chmod 644 "$KERNELDIR"/mkbootimg_tools/$MODEL/ramdisk/crk_modules/*.ko
 
-		if [ "$PYTHON_WAS_3" -eq "1" ]; then
-			rm /usr/bin/python
-			ln -s /usr/bin/python3 /usr/bin/python
-		fi;
-
 		sync
 
 		pushd "$KERNELDIR"/mkbootimg_tools;
@@ -107,14 +85,6 @@ BUILD_NOW()
 		rm -rf "$KERNELDIR"/mkbootimg_tools/$MODEL/kernel;
 		rm -rf "$KERNELDIR"/mkbootimg_tools/$MODEL/ramdisk/crk_modules/*.ko;
 		echo "All Done";
-	else
-		if [ "$PYTHON_WAS_3" -eq "1" ]; then
-			rm /usr/bin/python
-			ln -s /usr/bin/python3 /usr/bin/python
-		fi;
-
-		# with red-color
-		echo -e "\e[1;31mKernel STUCK in BUILD! no Image.gz-dtb exist\e[m"
 	fi;
 }
 
