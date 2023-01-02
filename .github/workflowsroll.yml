@@ -1,0 +1,27 @@
+name: Manually rollback
+on:
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: 'The revision to rollback to'
+        required: true
+
+      branch:
+        description: 'The branch that the rollback affects'
+        required: true
+
+jobs:
+  Rollback:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+           ref: ${{ github.event.inputs.branch }}
+           fetch-depth: 0
+
+      - name: Rolls back to a certain version
+        uses: fivebluepetals/rollback-action@v1.0
+        with:
+          branch: ${{ github.event.inputs.branch }}
+          revision: ${{ github.event.inputs.revision }}
