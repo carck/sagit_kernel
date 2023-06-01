@@ -1541,6 +1541,61 @@ static struct msm_vidc_format venc_formats[] = {
 	},
 };
 
+static const struct msm_vidc_format *
+venc_try_fmt_common(struct msm_vidc_inst *inst, struct v4l2_format *f)
+{
+	struct v4l2_pix_format_mplane *pixmp = &f->fmt.pix_mp;
+	struct v4l2_plane_pix_format *pfmt = pixmp->plane_fmt;
+	const struct msm_vidc_format *fmt;
+	u32 sizeimage;
+
+	memset(pfmt[0].reserved, 0, sizeof(pfmt[0].reserved));
+	memset(pixmp->reserved, 0, sizeof(pixmp->reserved));
+
+	fmt = msm_comm_get_pixel_fmt_fourcc(venc_formats, ARRAY_SIZE(venc_formats), pixmp->pixelformat, f->type);
+	if (!fmt) {
+		if (f->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
+			pixmp->pixelformat = V4L2_PIX_FMT_H264;
+		else if (f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
+			pixmp->pixelformat = V4L2_PIX_FMT_NV12;
+		else
+			return NULL;
+		fmt = msm_comm_get_pixel_fmt_fourcc(venc_formats, ARRAY_SIZE(venc_formats), pixmp->pixelformat, f->type);
+		if (!fmt)
+			return NULL;
+	}
+
+	pixmp->width = ALIGN(pixmp->width, 128);
+	pixmp->height = ALIGN(pixmp->height, 32);
+
+	pixmp->width = ALIGN(pixmp->width, 2);
+	pixmp->height = ALIGN(pixmp->height, 2);
+
+	if (pixmp->field == V4L2_FIELD_ANY)
+		pixmp->field = V4L2_FIELD_NONE;
+	pixmp->num_planes = 1;
+	pixmp->flags = 0;
+
+	sizeimage = fmt->get_frame_size(0,
+			pixmp->height, pixmp->width);
+
+	pfmt[0].sizeimage = max(ALIGN(pfmt[0].sizeimage, SZ_4K), sizeimage);
+
+	if (f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
+		pfmt[0].bytesperline = ALIGN(pixmp->width, 128);
+	else
+		pfmt[0].bytesperline = 0;
+
+	return fmt;
+}
+
+int msm_venc_try_fmt(struct msm_vidc_inst *inst, struct v4l2_format *f)
+{
+	venc_try_fmt_common(inst, f);
+
+	return 0;
+}
+
 static int msm_venc_set_csc(struct msm_vidc_inst *inst)
 {
 	int rc = 0;
