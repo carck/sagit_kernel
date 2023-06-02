@@ -4237,6 +4237,7 @@ int msm_venc_querycap(struct msm_vidc_inst *inst, struct v4l2_capability *cap)
 						V4L2_CAP_STREAMING;
 	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	memset(cap->reserved, 0, sizeof(cap->reserved));
+	strlcpy(cap->bus_info, "platform:qcom-venus", sizeof(cap->bus_info));
 	return 0;
 }
 
