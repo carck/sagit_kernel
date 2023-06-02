@@ -4332,6 +4332,12 @@ int msm_venc_s_fmt(struct msm_vidc_inst *inst, struct v4l2_format *f)
 			goto exit;
 		}
 
+		rc = msm_comm_try_state(inst, MSM_VIDC_OPEN_DONE);
+		if (rc) {
+			dprintk(VIDC_ERR, "Failed to open instance\n");
+			goto exit;
+		}
+
 		frame_sz.buffer_type = HAL_BUFFER_INPUT;
 		frame_sz.width = inst->prop.width[OUTPUT_PORT];
 		frame_sz.height = inst->prop.height[OUTPUT_PORT];
