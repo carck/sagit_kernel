@@ -91,13 +91,6 @@ static int msm_v4l2_querycap(struct file *filp, void *fh,
 	return msm_vidc_querycap((void *)vidc_inst, cap);
 }
 
-static int msm_v4l2_try_fmt(struct file *filp, void *fh,
-			struct v4l2_format *f)
-{
-	struct msm_vidc_inst *vidc_inst = get_vidc_inst(filp, fh);
-	return msm_vidc_try_fmt((void *)vidc_inst, f);
-}
-
 int msm_v4l2_enum_fmt(struct file *file, void *fh,
 					struct v4l2_fmtdesc *f)
 {
@@ -253,8 +246,6 @@ static const struct v4l2_ioctl_ops msm_v4l2_ioctl_ops = {
 	.vidioc_s_fmt_vid_out_mplane = msm_v4l2_s_fmt,
 	.vidioc_g_fmt_vid_cap_mplane = msm_v4l2_g_fmt,
 	.vidioc_g_fmt_vid_out_mplane = msm_v4l2_g_fmt,
-	.vidioc_try_fmt_vid_cap_mplane = msm_v4l2_try_fmt,
-	.vidioc_try_fmt_vid_out_mplane = msm_v4l2_try_fmt,
 	.vidioc_reqbufs = msm_v4l2_reqbufs,
 	.vidioc_prepare_buf = msm_v4l2_prepare_buf,
 	.vidioc_qbuf = msm_v4l2_qbuf,

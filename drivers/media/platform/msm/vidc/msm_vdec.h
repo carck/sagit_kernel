@@ -33,7 +33,6 @@ int msm_vdec_streamon(struct msm_vidc_inst *inst, enum v4l2_buf_type i);
 int msm_vdec_streamoff(struct msm_vidc_inst *inst, enum v4l2_buf_type i);
 int msm_vdec_cmd(struct msm_vidc_inst *inst, struct v4l2_decoder_cmd *dec);
 int msm_vdec_s_parm(struct msm_vidc_inst *inst, struct v4l2_streamparm *a);
-int msm_vdec_try_fmt(struct msm_vidc_inst *inst, struct v4l2_format *f);
 const struct vb2_ops *msm_vdec_get_vb2q_ops(void);
 void msm_vdec_g_ctrl(struct msm_vidc_ctrl **ctrls, int *num_ctrls);
 void msm_vdec_ctrl_sort(void);
